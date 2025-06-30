@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useState, useRef, useEffect } from "react";
 import { Plus, Trash2, FileText, Table, User } from "lucide-react";
 import { FormData, Person, anchorSymbols } from "@/types/surat-tugas";
 import { getCategoryOptions, getSubcategoryOptions } from "@/data/letterCategories";
@@ -59,6 +59,8 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   const categoryOptions = getCategoryOptions();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [personErrors, setPersonErrors] = useState<Record<string, Record<string, string>>>({});
+  const [highlightedIndexes, setHighlightedIndexes] = useState<number[]>([]);
+  const personRefs = useRef<(HTMLDivElement | null)[]>([]);
   
   const formatHint = formData.category === "OT" 
     ? `Format: B-[Nomor]/OT.${formData.subcategory.replace("OT.", "")}/${formData.month}/${formData.year}`
@@ -178,7 +180,7 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
     if (!validateForm()) return;
     try {
       await saveLetter(formData);
-      toast({ title: 'Surat berhasil disimpan', variant: 'success' });
+      toast({ title: 'Surat berhasil disimpan', variant: 'default' });
     } catch (err: any) {
       toast({ title: 'Gagal menyimpan surat', description: err.message, variant: 'destructive' });
     }
@@ -199,6 +201,46 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
       };
     }
   }, [formData]);
+
+  // Scroll & highlight logic
+  useEffect(() => {
+    if (highlightedIndexes.length > 0) {
+      // Scroll ke index terakhir yang di-highlight
+      const lastIdx = highlightedIndexes[highlightedIndexes.length - 1];
+      const ref = personRefs.current[lastIdx];
+      if (ref) {
+        ref.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      // Hilangkan highlight setelah 1.5 detik
+      const timeout = setTimeout(() => {
+        setHighlightedIndexes([]);
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [highlightedIndexes]);
+
+  // Handler baru untuk addPerson yang support highlight & scroll
+  const handleAddPerson = () => {
+    const prevCount = formData.people.length;
+    addPerson();
+    // Tunggu update state, lalu highlight & scroll
+    setTimeout(() => {
+      const newCount = formData.people.length + 1; // +1 karena addPerson akan menambah
+      const newIndexes = Array.from({ length: newCount - prevCount }, (_, i) => prevCount + i);
+      setHighlightedIndexes(newIndexes);
+    }, 0);
+  };
+
+  // Handler baru untuk removePerson yang support scroll & highlight
+  const handleRemovePerson = (index: number) => {
+    removePerson(index);
+    setTimeout(() => {
+      const lastIdx = formData.people.length - 2; // -1 karena sudah dihapus, -1 lagi karena 0-based
+      if (lastIdx >= 0) {
+        setHighlightedIndexes([lastIdx]);
+      }
+    }, 0);
+  };
 
   return (
     <form className="bg-white rounded-lg shadow-md p-6" onSubmit={handleSubmit}>
@@ -345,14 +387,16 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
             <h3 className="text-sm font-medium text-gray-700">
               Kepada <span className="text-red-500">*</span>
             </h3>
-            <button
-              type="button"
-              onClick={addPerson}
-              className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Tambah Orang
-            </button>
+            {formData.people.length <= 2 && (
+              <button
+                type="button"
+                onClick={handleAddPerson}
+                className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Tambah Orang
+              </button>
+            )}
           </div>
 
           <div className="flex items-center mb-4">
@@ -371,13 +415,17 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
           </div>
 
           {formData.people.map((person, index) => (
-            <div key={index} className="mb-6 p-4 border border-gray-200 rounded-md">
+            <div
+              key={index}
+              ref={el => personRefs.current[index] = el}
+              className={`mb-6 p-4 border border-gray-200 rounded-md transition-colors duration-700 ${highlightedIndexes.includes(index) ? 'bg-yellow-100' : ''}`}
+            >
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-sm font-medium text-gray-700">Orang {index + 1}</h4>
                 {formData.people.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => removePerson(index)}
+                    onClick={() => handleRemovePerson(index)}
                     className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
                   >
                     <Trash2 className="w-3 h-3 mr-1" />
@@ -554,6 +602,18 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
       </div>
       {!hideSaveButton && (
         <button type="submit" className="mt-6 w-full bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700">Simpan Surat</button>
+      )}
+      {/* FAB Tambah Orang jika lebih dari 2 */}
+      {formData.people.length > 2 && (
+        <button
+          type="button"
+          onClick={handleAddPerson}
+          className="fixed bottom-8 right-8 z-50 flex items-center px-4 py-3 text-base font-semibold text-white bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all"
+          style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Tambah Orang
+        </button>
       )}
     </form>
   );
