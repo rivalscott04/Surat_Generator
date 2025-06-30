@@ -1,0 +1,562 @@
+import React, { ChangeEvent, useState } from "react";
+import { Plus, Trash2, FileText, Table, User } from "lucide-react";
+import { FormData, Person, anchorSymbols } from "@/types/surat-tugas";
+import { getCategoryOptions, getSubcategoryOptions } from "@/data/letterCategories";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import FormField from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { EmployeeSearch } from './EmployeeSearch';
+import { saveLetter } from '@/services/letter-service';
+
+interface SuratTugasFormProps {
+  formData: FormData;
+  handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handlePersonChange: (index: number, field: keyof Person, value: string) => void;
+  addPerson: () => void;
+  removePerson: (index: number) => void;
+  subcategoryOptions: { value: string, text: string }[];
+  formatLetterNumber: (userNumber: string) => string;
+  hideSaveButton?: boolean;
+}
+
+const personSchema = z.object({
+  nama: z.string().min(1, "Nama harus diisi"),
+  nip: z.string().min(1, "NIP harus diisi"),
+  jabatan: z.string().min(1, "Jabatan harus diisi"),
+  unitKerja: z.string(),
+  keterangan: z.string(),
+});
+
+const formSchema = z.object({
+  nomor: z.string().min(1, "Nomor surat harus diisi"),
+  category: z.string(),
+  subcategory: z.string(),
+  month: z.string(),
+  year: z.string(),
+  menimbangA: z.string().min(1, "Menimbang A harus diisi"),
+  dasar: z.string().min(1, "Dasar harus diisi"),
+  untuk: z.string().min(1, "Untuk harus diisi"),
+  useTTE: z.boolean(),
+  anchorSymbol: z.string(),
+  useTableFormat: z.boolean(),
+  signatureName: z.string().min(1, "Nama penandatangan harus diisi"),
+  people: z.array(personSchema).min(1, "Minimal harus ada satu orang"),
+});
+
+const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
+  formData,
+  handleChange,
+  handlePersonChange,
+  addPerson,
+  removePerson,
+  subcategoryOptions,
+  formatLetterNumber,
+  hideSaveButton,
+}) => {
+  const { toast } = useToast();
+  const categoryOptions = getCategoryOptions();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [personErrors, setPersonErrors] = useState<Record<string, Record<string, string>>>({});
+  
+  const formatHint = formData.category === "OT" 
+    ? `Format: B-[Nomor]/OT.${formData.subcategory.replace("OT.", "")}/${formData.month}/${formData.year}`
+    : `Format: [Nomor]/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`;
+
+  const validateField = (name: string, value: string) => {
+    if (name === "nomor" && value && !/^[0-9]*$/.test(value)) {
+      setErrors(prev => ({ ...prev, [name]: "Nomor surat hanya boleh angka" }));
+      return false;
+    }
+    try {
+      const fieldSchema = formSchema.shape[name as keyof typeof formSchema.shape];
+      if (!fieldSchema) return true;
+      const schema = z.object({ [name]: fieldSchema });
+      schema.parse({ [name]: value });
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.errors[0]?.message || `${name} tidak valid`;
+        setErrors(prev => ({ ...prev, [name]: message }));
+        return false;
+      }
+      return true;
+    }
+  };
+
+  const validatePersonField = (index: number, field: keyof Person, value: string) => {
+    try {
+      const fieldSchema = personSchema.shape[field];
+      if (!fieldSchema) return true;
+      
+      const schema = z.object({ [field]: fieldSchema });
+      schema.parse({ [field]: value });
+      
+      setPersonErrors(prev => {
+        const newErrors = { ...prev };
+        if (!newErrors[index]) newErrors[index] = {};
+        newErrors[index][field] = undefined;
+        return newErrors;
+      });
+      
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.errors[0]?.message || `${field} tidak valid`;
+        
+        setPersonErrors(prev => {
+          const newErrors = { ...prev };
+          if (!newErrors[index]) newErrors[index] = {};
+          newErrors[index][field] = message;
+          return newErrors;
+        });
+        
+        return false;
+      }
+      return true;
+    }
+  };
+
+  const handleFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type !== "checkbox") {
+      validateField(name, value);
+    }
+    handleChange(e);
+  };
+
+  const handlePersonFieldChange = (index: number, field: keyof Person, value: string) => {
+    validatePersonField(index, field, value);
+    handlePersonChange(index, field, value);
+  };
+
+  const handleEmployeeSelect = (index: number, employeeData: Partial<Person>) => {
+    for (const [field, value] of Object.entries(employeeData)) {
+      handlePersonChange(index, field as keyof Person, value as string);
+    }
+  };
+
+  const validateForm = () => {
+    try {
+      formSchema.parse(formData);
+      setErrors({});
+      setPersonErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        const newPersonErrors: Record<string, Record<string, string>> = {};
+        
+        error.errors.forEach(err => {
+          const path = err.path;
+          
+          if (path[0] === "people" && typeof path[1] === "number" && typeof path[2] === "string") {
+            const personIndex = path[1];
+            const personField = path[2] as keyof Person;
+            
+            if (!newPersonErrors[personIndex]) {
+              newPersonErrors[personIndex] = {};
+            }
+            
+            newPersonErrors[personIndex][personField] = err.message;
+          } else if (typeof path[0] === "string") {
+            newErrors[path[0]] = err.message;
+          }
+        });
+        
+        setErrors(newErrors);
+        setPersonErrors(newPersonErrors);
+      }
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    try {
+      await saveLetter(formData);
+      toast({ title: 'Surat berhasil disimpan', variant: 'success' });
+    } catch (err: any) {
+      toast({ title: 'Gagal menyimpan surat', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  React.useEffect(() => {
+    const form = document.getElementById("surat-tugas-form");
+    if (form) {
+      const originalOnSubmit = form.onsubmit;
+      form.onsubmit = (e) => {
+        if (!validateForm()) {
+          e.preventDefault();
+          return false;
+        }
+        if (originalOnSubmit) {
+          return originalOnSubmit.call(form, e);
+        }
+      };
+    }
+  }, [formData]);
+
+  return (
+    <form className="bg-white rounded-lg shadow-md p-6" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-2 mb-6">
+        <FileText className="w-5 h-5 text-blue-600" />
+        <h2 className="text-xl font-semibold text-gray-900">Form Input</h2>
+      </div>
+
+      <div className="space-y-6" id="surat-tugas-form">
+        <div className="space-y-4">
+          <FormField 
+            label="Nomor Surat" 
+            required
+            error={errors.nomor}
+            htmlFor="nomor"
+          >
+            <Input
+              type="number"
+              id="nomor"
+              name="nomor"
+              value={formData.nomor}
+              onChange={handleFieldChange}
+              placeholder="12345"
+              className={errors.nomor ? "border-red-500" : ""}
+            />
+          </FormField>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleFieldChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {categoryOptions.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sub Kategori</label>
+            <select
+              name="subcategory"
+              value={formData.subcategory}
+              onChange={handleFieldChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {subcategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.text}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+              <select
+                name="month"
+                value={formData.month}
+                onChange={handleFieldChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {Array.from({ length: 12 }, (_, i) => {
+                  const month = (i + 1).toString().padStart(2, "0");
+                  return (
+                    <option key={month} value={month}>
+                      {month}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+              <select
+                name="year"
+                value={formData.year}
+                onChange={handleFieldChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = (new Date().getFullYear() - 2 + i).toString();
+                  return (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-1">
+            {formatHint}
+          </p>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <FormField 
+            label="Menimbang (Poin A)" 
+            required
+            error={errors.menimbangA}
+            htmlFor="menimbangA"
+          >
+            <Textarea
+              id="menimbangA"
+              name="menimbangA"
+              value={formData.menimbangA}
+              onChange={handleFieldChange}
+              rows={4}
+              placeholder="Masukkan poin menimbang A"
+              className={errors.menimbangA ? "border-red-500" : ""}
+            />
+          </FormField>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <FormField 
+            label="Dasar" 
+            required
+            error={errors.dasar}
+            htmlFor="dasar"
+          >
+            <Textarea
+              id="dasar"
+              name="dasar"
+              value={formData.dasar}
+              onChange={handleFieldChange}
+              rows={4}
+              placeholder="Masukkan dasar surat tugas"
+              className={errors.dasar ? "border-red-500" : ""}
+            />
+          </FormField>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">
+              Kepada <span className="text-red-500">*</span>
+            </h3>
+            <button
+              type="button"
+              onClick={addPerson}
+              className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Tambah Orang
+            </button>
+          </div>
+
+          <div className="flex items-center mb-4">
+            <input
+              type="checkbox"
+              id="useTableFormat"
+              name="useTableFormat"
+              checked={formData.useTableFormat}
+              onChange={handleChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="useTableFormat" className="ml-2 flex items-center text-sm font-medium text-gray-700">
+              <Table className="w-4 h-4 mr-1" />
+              Gunakan format tabel untuk daftar orang
+            </label>
+          </div>
+
+          {formData.people.map((person, index) => (
+            <div key={index} className="mb-6 p-4 border border-gray-200 rounded-md">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-medium text-gray-700">Orang {index + 1}</h4>
+                {formData.people.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removePerson(index)}
+                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Hapus
+                  </button>
+                )}
+              </div>
+              <div className="space-y-4">
+                <FormField 
+                  label="NIP" 
+                  required
+                  error={personErrors[index]?.nip}
+                  htmlFor={`nip-${index}`}
+                >
+                  <EmployeeSearch
+                    index={index}
+                    onEmployeeSelect={handleEmployeeSelect}
+                  />
+                </FormField>
+
+                <FormField 
+                  label="Nama" 
+                  required
+                  error={personErrors[index]?.nama}
+                  htmlFor={`nama-${index}`}
+                >
+                  <input
+                    type="text"
+                    id={`nama-${index}`}
+                    value={person.nama}
+                    readOnly
+                    className="bg-gray-50 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder=""
+                  />
+                </FormField>
+
+                <FormField 
+                  label="Jabatan" 
+                  required
+                  error={personErrors[index]?.jabatan}
+                  htmlFor={`jabatan-${index}`}
+                >
+                  <input
+                    type="text"
+                    id={`jabatan-${index}`}
+                    value={person.jabatan}
+                    readOnly
+                    className="bg-gray-50 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder=""
+                  />
+                </FormField>
+
+                <div>
+                  <label
+                    className={`block text-sm font-medium ${formData.useTableFormat ? "text-gray-400" : "text-gray-700"} mb-1`}
+                  >
+                    Unit Kerja
+                  </label>
+                  <input
+                    type="text"
+                    value={person.unitKerja}
+                    onChange={(e) => handlePersonFieldChange(index, "unitKerja", e.target.value)}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none ${
+                      formData.useTableFormat
+                        ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                        : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    }`}
+                    placeholder=""
+                    disabled={formData.useTableFormat}
+                    readOnly
+                  />
+                  {formData.useTableFormat && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Unit kerja otomatis ditampilkan setelah jabatan dalam format tabel
+                    </p>
+                  )}
+                </div>
+
+                {formData.useTableFormat && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+                    <input
+                      type="text"
+                      value={person.keterangan}
+                      onChange={(e) => handlePersonFieldChange(index, "keterangan", e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Masukkan keterangan (opsional)"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <FormField 
+            label="Untuk" 
+            required
+            error={errors.untuk}
+            htmlFor="untuk"
+          >
+            <Textarea
+              id="untuk"
+              name="untuk"
+              value={formData.untuk}
+              onChange={handleFieldChange}
+              rows={4}
+              placeholder="Masukkan tujuan tugas"
+              className={errors.untuk ? "border-red-500" : ""}
+            />
+          </FormField>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center mb-2">
+            <input
+              type="checkbox"
+              id="useTTE"
+              name="useTTE"
+              checked={formData.useTTE}
+              onChange={handleChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="useTTE" className="ml-2 block text-sm font-medium text-gray-700">
+              Gunakan Tanda Tangan Elektronik (TTE)
+            </label>
+          </div>
+
+          {formData.useTTE && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Simbol Anchor</label>
+              <select
+                name="anchorSymbol"
+                value={formData.anchorSymbol}
+                onChange={handleFieldChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {anchorSymbols.map((anchor) => (
+                  <option key={anchor.id} value={anchor.id}>
+                    {anchor.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+          <FormField 
+            label="Nama Penandatangan" 
+            required
+            error={errors.signatureName}
+            htmlFor="signatureName"
+          >
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-blue-600" />
+              <Input
+                type="text"
+                id="signatureName"
+                name="signatureName"
+                value={formData.signatureName}
+                onChange={handleFieldChange}
+                placeholder="Masukkan nama penandatangan"
+                className={errors.signatureName ? "border-red-500" : ""}
+              />
+            </div>
+          </FormField>
+        </div>
+        
+        <div className="mt-2 text-xs text-gray-500">
+          * Kolom yang bertanda bintang wajib diisi
+        </div>
+      </div>
+      {!hideSaveButton && (
+        <button type="submit" className="mt-6 w-full bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700">Simpan Surat</button>
+      )}
+    </form>
+  );
+};
+
+export default SuratTugasForm;
