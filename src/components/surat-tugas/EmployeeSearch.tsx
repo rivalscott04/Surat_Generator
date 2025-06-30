@@ -19,30 +19,29 @@ interface EmployeeSearchProps {
 export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmployeeSelect }) => {
   const [search, setSearch] = useState('');
   const [employees, setEmployees] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Deteksi apakah input NIP (angka) atau nama (huruf)
     const isNip = /^\d+$/.test(debouncedSearch);
-    if ((isNip && debouncedSearch.length >= 5) || (!isNip && debouncedSearch.length >= 3)) {
+    if (employees.some(emp => emp.nip === debouncedSearch)) {
+      return;
+    }
+    if ((isNip && debouncedSearch.length >= 5) || (!isNip && debouncedSearch.length >= 4)) {
       searchEmployees(debouncedSearch)
-        .then(setEmployees)
+        .then((res) => {
+          console.log('EMPLOYEES:', res);
+          setEmployees(res);
+        })
         .catch((err) => setError(err.message));
     } else {
       setEmployees([]);
       setError(null);
     }
   }, [debouncedSearch]);
-
-  // Focus on input when dropdown opens
-  useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [open]);
 
   return (
     <div>
@@ -52,12 +51,13 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
             ref={inputRef}
             placeholder="Ketik NIP atau nama..."
             value={search}
-            onValueChange={setSearch}
-            onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 200)} // delay to allow select
+            onValueChange={val => {
+              setSearch(val);
+              setSelected(false);
+            }}
             className="bg-white"
           />
-          {open && (
+          {(!selected && debouncedSearch.length >= ( /^\d+$/.test(debouncedSearch) ? 5 : 4 ) && employees.length > 0) && (
             <CommandList>
               {error ? (
                 <CommandEmpty>{error}</CommandEmpty>
@@ -66,7 +66,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
                   {employees.map((employee) => (
                     <CommandItem
                       key={employee.nip}
-                      value={employee.nip}
+                      value={`${employee.nama} ${employee.nip}`}
                       onSelect={() => {
                         onEmployeeSelect(index, {
                           nip: employee.nip,
@@ -75,8 +75,9 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
                           unitKerja: employee.unitKerja,
                           pangkat: employee.pangkat,
                         });
+                        setEmployees([]); // tutup dropdown
                         setSearch(employee.nip); // show selected NIP
-                        setOpen(false);
+                        setSelected(true);
                       }}
                     >
                       <div className="flex flex-col">
@@ -88,7 +89,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ) : debouncedSearch.length > 2 ? (
+              ) : debouncedSearch.length > 3 ? (
                 <CommandEmpty>Tidak ada hasil</CommandEmpty>
               ) : null}
             </CommandList>
@@ -96,7 +97,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
         </Command>
       </div>
       <p className="text-xs text-gray-400 mt-1">
-        Data pegawai diambil otomatis dari API. Minimal ketik 3 huruf nama atau 5 digit awal NIP.
+        Data pegawai diambil otomatis dari API. Minimal ketik 4 huruf nama atau 5 digit awal NIP.
       </p>
     </div>
   );

@@ -19,11 +19,11 @@ const LetterHeader: React.FC<LetterHeaderProps> = ({ staticData, formattedNumber
         />
         <div className="flex-1 sm:-ml-8">
           <div className="text-center">
-            <p className="text-xl font-bold">KEMENTERIAN AGAMA REPUBLIK INDONESIA</p>
-            <p className="text-lg font-bold">KANTOR WILAYAH KEMENTERIAN AGAMA</p>
-            <p className="text-lg font-bold">PROVINSI NUSA TENGGARA BARAT</p>
-            <p className="text-sm">{staticData.headerInfo.address}</p>
-            <p className="text-sm">{staticData.headerInfo.website}</p>
+            <p className="font-bold" style={{ fontSize: '14pt' }}>KEMENTERIAN AGAMA REPUBLIK INDONESIA</p>
+            <p className="font-bold" style={{ fontSize: '12pt' }}>KANTOR WILAYAH KEMENTERIAN AGAMA</p>
+            <p className="font-bold" style={{ fontSize: '12pt' }}>PROVINSI NUSA TENGGARA BARAT</p>
+            <p style={{ fontSize: '10pt' }}>{staticData.headerInfo.address}</p>
+            <p style={{ fontSize: '10pt' }}>{staticData.headerInfo.website}</p>
           </div>
         </div>
       </div>
@@ -32,7 +32,7 @@ const LetterHeader: React.FC<LetterHeaderProps> = ({ staticData, formattedNumber
       <div className="border-b-2 border-black"></div>
 
       <div className="text-center mt-4 mb-8">
-        <h1 className="text-lg font-bold uppercase mb-2">SURAT TUGAS</h1>
+        <h1 className="font-bold uppercase mb-2" style={{ fontSize: '14pt' }}>SURAT TUGAS</h1>
         <p className="text-sm">Nomor: {formattedNumber || "........................."}</p>
       </div>
     </>
