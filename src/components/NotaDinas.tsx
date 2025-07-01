@@ -39,7 +39,7 @@ const NotaDinas = () => {
 
   const [formData, setFormData] = useState<NotaDinasData>({
     nomor: "",
-    category: "KP",
+    category: "KP", // Default to Kepegawaian
     subcategory: "KP.01",
     month: currentMonth,
     year: currentYear,
@@ -157,6 +157,7 @@ const NotaDinas = () => {
       letterNumber: formatLetterNumber(formData.nomor, formData.subcategory, formData.month, formData.year, formData.category),
       category: formData.category,
       subcategory: formData.subcategory,
+      documentType: "Nota Dinas",
       people: [formData.kepada],
       title: `Nota Dinas - ${formData.perihal}`
     };

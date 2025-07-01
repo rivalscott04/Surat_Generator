@@ -44,12 +44,11 @@ const SuratTugas = () => {
     subcategory: "KP.01", // Default to Tata Usaha Kepegawaian
     month: currentMonth,
     year: currentYear,
-    menimbangA:
-      "Berdasarkan Surat Sekertariat Jenderal Kementerian Agama Nomor P-001562/B.II/2KP.00.1/01/2025 Bahwa dalam rangka Kegiatan Penetapan NI CASN Kementerian Agama Formasi Tahun Anggaran 2024, Kantor Wilayah Kementerian Agama Provinsi Nusa Tenggara Barat Tahun 2024, perlu menugaskan Peserta untuk kegiatan tersebut.",
+    menimbang: ["", ""],
     dasar:
       "DIPA Kantor Wilayah Kementerian Agama Provinsi Nusa Tenggara Barat Tahun 2024 Nomor : SP DIPA-025.01.2.419957/2024 Tanggal 24 November 2024",
-    people: [{ nama: "", nip: "", pangkat: "", jabatan: "", unitKerja: "", keterangan: "" }],
     untuk: "",
+    people: [{ nama: "", nip: "", pangkat: "", jabatan: "", unitKerja: "", keterangan: "" }],
     useTTE: false,
     anchorSymbol: "caret",
     useTableFormat: false,
@@ -59,6 +58,8 @@ const SuratTugas = () => {
   const [subcategoryOptions, setSubcategoryOptions] = useState<{ value: string, text: string }[]>([]);
 
   const [showToast, setShowToast] = useState(false);
+
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const options = getSubcategoryOptions(formData.category);
@@ -227,8 +228,9 @@ const SuratTugas = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <SuratTugasForm 
+          <SuratTugasForm
             formData={formData}
+            setFormData={setFormData}
             handleChange={handleChange}
             handlePersonChange={handlePersonChange}
             addPerson={addPerson}
@@ -236,6 +238,7 @@ const SuratTugas = () => {
             subcategoryOptions={subcategoryOptions}
             formatLetterNumber={formatLetterNumberWithData}
             hideSaveButton={true}
+            formRef={formRef}
           />
 
           <div className="bg-white rounded-lg shadow-md p-6 relative">
@@ -247,7 +250,7 @@ const SuratTugas = () => {
               {!isMobile && (
                 <div className="flex gap-2">
                   <button
-                    onClick={handleSave}
+                    onClick={() => formRef.current?.requestSubmit()}
                     className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
                     <Save className="w-4 h-4 mr-2" />
@@ -279,7 +282,7 @@ const SuratTugas = () => {
             {isMobile && (
               <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex gap-2 p-4">
                 <button
-                  onClick={handleSave}
+                  onClick={() => formRef.current?.requestSubmit()}
                   className="flex-1 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                 >
                   <Save className="w-4 h-4 mr-2" />

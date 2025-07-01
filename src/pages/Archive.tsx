@@ -4,17 +4,18 @@ import LetterTable from "@/components/surat-tugas/LetterTable";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, FileSpreadsheet } from "lucide-react";
+import { Plus, FileText, FileSpreadsheet, FileCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
 const Archive = () => {
-  const { letters } = useLetterStore();
+  const { letters, clearStorage } = useLetterStore();
   const [activeTab, setActiveTab] = useState("surat-tugas");
   
-  // Filter letters based on document type (category)
-  const suratTugasLetters = letters.filter(letter => letter.category === "Surat Tugas");
-  const notaDinasLetters = letters.filter(letter => letter.category === "Nota Dinas");
+  // Filter letters based on document type
+  const suratTugasLetters = letters.filter(letter => letter.documentType === "Surat Tugas");
+  const notaDinasLetters = letters.filter(letter => letter.documentType === "Nota Dinas");
+  const suratKeputusanLetters = letters.filter(letter => letter.documentType === "Surat Keputusan");
   
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -34,6 +35,19 @@ const Archive = () => {
                 Buat Nota Dinas
               </Button>
             </Link>
+            <Link to="/surat-keputusan">
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Buat Surat Keputusan
+              </Button>
+            </Link>
+            <Button 
+              onClick={clearStorage} 
+              variant="outline" 
+              className="text-red-600 border-red-600 hover:bg-red-50"
+            >
+              Clear Storage
+            </Button>
           </div>
         </div>
         
@@ -46,6 +60,10 @@ const Archive = () => {
             <TabsTrigger value="nota-dinas" className="flex items-center">
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               Nota Dinas
+            </TabsTrigger>
+            <TabsTrigger value="surat-keputusan" className="flex items-center">
+              <FileCheck className="mr-2 h-4 w-4" />
+              Surat Keputusan
             </TabsTrigger>
           </TabsList>
           
@@ -60,6 +78,13 @@ const Archive = () => {
             <LetterTable 
               letters={notaDinasLetters} 
               documentType="Nota Dinas"
+            />
+          </TabsContent>
+          
+          <TabsContent value="surat-keputusan" className="mt-0">
+            <LetterTable 
+              letters={suratKeputusanLetters} 
+              documentType="Surat Keputusan"
             />
           </TabsContent>
         </Tabs>

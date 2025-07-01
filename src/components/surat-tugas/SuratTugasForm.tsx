@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmployeeSearch } from './EmployeeSearch';
 import { saveLetter } from '@/services/letter-service';
+import { useLetterStore } from '@/hooks/use-letter-store';
+import { createLetterHistoryFromForm } from '@/hooks/use-letter-store';
 
 interface SuratTugasFormProps {
   formData: FormData;
+  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
   handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   handlePersonChange: (index: number, field: keyof Person, value: string) => void;
   addPerson: () => void;
@@ -19,34 +22,41 @@ interface SuratTugasFormProps {
   subcategoryOptions: { value: string, text: string }[];
   formatLetterNumber: (userNumber: string) => string;
   hideSaveButton?: boolean;
+  formRef?: React.RefObject<HTMLFormElement>;
 }
 
 const personSchema = z.object({
-  nama: z.string().min(1, "Nama harus diisi"),
-  nip: z.string().min(1, "NIP harus diisi"),
-  jabatan: z.string().min(1, "Jabatan harus diisi"),
+  nama: z.string().trim().min(1, "Nama harus diisi"),
+  nip: z.string().trim().min(1, "NIP harus diisi"),
+  jabatan: z.string().trim().min(1, "Jabatan harus diisi"),
   unitKerja: z.string(),
   keterangan: z.string(),
 });
 
+type FormErrors = {
+  menimbang?: string;
+  [key: string]: string | undefined;
+};
+
 const formSchema = z.object({
-  nomor: z.string().min(1, "Nomor surat harus diisi"),
-  category: z.string(),
-  subcategory: z.string(),
-  month: z.string(),
-  year: z.string(),
-  menimbangA: z.string().min(1, "Menimbang A harus diisi"),
-  dasar: z.string().min(1, "Dasar harus diisi"),
-  untuk: z.string().min(1, "Untuk harus diisi"),
+  nomor: z.string().trim().min(1, "Nomor surat harus diisi"),
+  category: z.string().min(1, "Kategori harus diisi"),
+  subcategory: z.string().min(1, "Subkategori harus diisi"),
+  month: z.string().min(1, "Bulan harus diisi"),
+  year: z.string().min(1, "Tahun harus diisi"),
+  menimbang: z.array(z.string().trim().min(1, "Poin menimbang wajib diisi")).length(2, "Harus ada 2 poin menimbang"),
+  dasar: z.string().trim().min(1, "Dasar harus diisi"),
+  untuk: z.string().trim().min(1, "Untuk harus diisi"),
+  people: z.array(personSchema).min(1, "Minimal harus ada satu orang"),
   useTTE: z.boolean(),
   anchorSymbol: z.string(),
   useTableFormat: z.boolean(),
   signatureName: z.string().min(1, "Nama penandatangan harus diisi"),
-  people: z.array(personSchema).min(1, "Minimal harus ada satu orang"),
 });
 
 const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   formData,
+  setFormData,
   handleChange,
   handlePersonChange,
   addPerson,
@@ -54,10 +64,12 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   subcategoryOptions,
   formatLetterNumber,
   hideSaveButton,
+  formRef,
 }) => {
   const { toast } = useToast();
+  const { addLetter } = useLetterStore();
   const categoryOptions = getCategoryOptions();
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [personErrors, setPersonErrors] = useState<Record<string, Record<string, string>>>({});
   const [highlightedIndexes, setHighlightedIndexes] = useState<number[]>([]);
   const personRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -123,6 +135,13 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
 
   const handleFieldChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    if (name === "nomor") {
+      // Auto-filter: hanya angka
+      const onlyNumbers = value.replace(/\D/g, "");
+      setFormData(prev => ({ ...prev, nomor: onlyNumbers }));
+      setErrors(prev => ({ ...prev, nomor: onlyNumbers ? undefined : "Nomor surat harus diisi" }));
+      return;
+    }
     if (type !== "checkbox") {
       validateField(name, value);
     }
@@ -141,27 +160,27 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   };
 
   const validateForm = () => {
+    console.log("validateForm called");
     try {
       formSchema.parse(formData);
       setErrors({});
       setPersonErrors({});
+      console.log("validateForm success");
       return true;
     } catch (error) {
+      console.log("validateForm error", error);
       if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
+        console.log("Zod errors:", error.errors);
+        const newErrors: FormErrors = {};
         const newPersonErrors: Record<string, Record<string, string>> = {};
-        
         error.errors.forEach(err => {
           const path = err.path;
-          
           if (path[0] === "people" && typeof path[1] === "number" && typeof path[2] === "string") {
             const personIndex = path[1];
             const personField = path[2] as keyof Person;
-            
             if (!newPersonErrors[personIndex]) {
               newPersonErrors[personIndex] = {};
             }
-            
             newPersonErrors[personIndex][personField] = err.message;
           } else if (typeof path[0] === "string") {
             newErrors[path[0]] = err.message;
@@ -177,12 +196,15 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("formData", formData);
     if (!validateForm()) return;
     try {
       await saveLetter(formData);
       toast({ title: 'Surat berhasil disimpan', variant: 'default' });
     } catch (err: any) {
-      toast({ title: 'Gagal menyimpan surat', description: err.message, variant: 'destructive' });
+      // Jika gagal simpan ke database, simpan ke localStorage dengan utility yang sama
+      addLetter(createLetterHistoryFromForm(formData));
+      toast({ title: 'Surat disimpan ke localStorage', description: 'Gagal simpan ke server', variant: 'default' });
     }
   };
 
@@ -242,8 +264,16 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
     }, 0);
   };
 
+  const handleMenimbangChange = (index: number, value: string) => {
+    setFormData(prev => {
+      const menimbang = [...(prev.menimbang || [])];
+      menimbang[index] = value;
+      return { ...prev, menimbang };
+    });
+  };
+
   return (
-    <form className="bg-white rounded-lg shadow-md p-6" onSubmit={handleSubmit}>
+    <form ref={formRef} className="bg-white rounded-lg shadow-md p-6" onSubmit={handleSubmit}>
       <div className="flex items-center gap-2 mb-6">
         <FileText className="w-5 h-5 text-blue-600" />
         <h2 className="text-xl font-semibold text-gray-900">Form Input</h2>
@@ -251,21 +281,26 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
 
       <div className="space-y-6" id="surat-tugas-form">
         <div className="space-y-4">
-          <FormField 
-            label="Nomor Surat" 
-            required
-            error={errors.nomor}
-            htmlFor="nomor"
-          >
-            <Input
-              type="number"
-              id="nomor"
-              name="nomor"
-              value={formData.nomor}
-              onChange={handleFieldChange}
-              placeholder="12345"
-              className={errors.nomor ? "border-red-500" : ""}
-            />
+          <FormField label="Nomor Surat" htmlFor="nomor" required error={undefined}>
+            <div className="relative">
+              <Input
+                id="nomor"
+                name="nomor"
+                type="text"
+                value={formData.nomor}
+                onChange={handleFieldChange}
+                className={`w-full ${errors.nomor ? 'border-red-500 focus:border-red-500 ring-1 ring-red-500' : ''}`}
+                autoFocus={!!errors.nomor}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required
+              />
+              {errors.nomor && (
+                <div className="absolute left-1/2 -top-10 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow z-10 animate-fadeIn text-sm whitespace-nowrap">
+                  {errors.nomor}
+                </div>
+              )}
+            </div>
           </FormField>
 
           <div>
@@ -345,22 +380,34 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
         </div>
 
         <div className="border-t border-gray-200 pt-6">
-          <FormField 
-            label="Menimbang (Poin A)" 
-            required
-            error={errors.menimbangA}
-            htmlFor="menimbangA"
-          >
-            <Textarea
-              id="menimbangA"
-              name="menimbangA"
-              value={formData.menimbangA}
-              onChange={handleFieldChange}
-              rows={4}
-              placeholder="Masukkan poin menimbang A"
-              className={errors.menimbangA ? "border-red-500" : ""}
-            />
-          </FormField>
+          <div className="flex mb-2">
+            <label className="w-[120px] font-bold">Menimbang</label>
+            <div className="flex-1">
+              <Textarea
+                name="menimbang-0"
+                value={formData.menimbang[0] || ""}
+                onChange={e => handleMenimbangChange(0, e.target.value)}
+                placeholder="Point a"
+                className={`w-full mb-2 ${errors.menimbang ? 'border-red-500 animate-shake' : ''}`}
+                rows={3}
+                required
+              />
+              <Textarea
+                name="menimbang-1"
+                value={formData.menimbang[1] || ""}
+                onChange={e => handleMenimbangChange(1, e.target.value)}
+                placeholder="Point b"
+                className={`w-full ${errors.menimbang ? 'border-red-500 animate-shake' : ''}`}
+                rows={3}
+                required
+              />
+              {errors.menimbang && (
+                <div className="text-red-600 text-sm mt-1 animate-fadeIn">
+                  {errors.menimbang}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-gray-200 pt-6">

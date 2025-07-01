@@ -45,14 +45,12 @@ const LetterContent: React.FC<LetterContentProps> = ({
             <div className="w-[120px] font-bold">Menimbang</div>
             <div className="w-[20px] text-center">:</div>
             <div className="flex-1 text-justify">
-              <div className="flex mb-2">
-                <div className="w-[20px]">a.</div>
-                <div className="flex-1">{formData.menimbangA}</div>
-              </div>
-              <div className="flex">
-                <div className="w-[20px]">b.</div>
-                <div className="flex-1">{staticData.menimbangB}</div>
-              </div>
+              {formData.menimbang && formData.menimbang.map((item, idx) => (
+                <div className="mb-2 flex items-start" key={idx}>
+                  <span className="mr-1">{String.fromCharCode(97 + idx)}.</span>
+                  <span className="flex-1 text-justify whitespace-pre-line break-words">{item}</span>
+                </div>
+              ))}
             </div>
           </div>
 

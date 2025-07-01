@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ArrowUpDown, FileText } from "lucide-react";
+import { Search, ArrowUpDown, FileText, Maximize2, X } from "lucide-react";
 import { 
   Table, 
   TableHeader, 
@@ -17,16 +17,19 @@ import LetterContent from "./LetterContent";
 import { Person, staticData, FormData } from "@/types/surat-tugas";
 import NotaDinasContent from "../nota-dinas/NotaDinasContent";
 import { NotaDinasData, staticData as notaDinasStaticData } from "@/types/nota-dinas";
+import SuratKeputusanContent from "../surat-keputusan/SuratKeputusanContent";
+import { SuratKeputusanData, staticData as suratKeputusanStaticData } from "@/types/surat-keputusan";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 
 interface LetterTableProps {
   letters: LetterHistory[];
-  documentType: "Surat Tugas" | "Nota Dinas";
+  documentType: "Surat Tugas" | "Nota Dinas" | "Surat Keputusan";
 }
 
 const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLetter, setSelectedLetter] = useState<LetterHistory | null>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof LetterHistory;
     direction: "asc" | "desc";
@@ -47,7 +50,9 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
       letter.letterNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       letter.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       letter.people.some(person => 
-        person.toLowerCase().includes(searchTerm.toLowerCase())
+        person.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (person.nip && person.nip.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (person.jabatan && person.jabatan.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     )
     .sort((a, b) => {
@@ -77,21 +82,14 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
       subcategory: letter.subcategory,
       month: new Date(letter.createdAt).getMonth().toString().padStart(2, "0"),
       year: new Date(letter.createdAt).getFullYear().toString(),
-      menimbangA: letter.title,
-      dasar: "",
-      people: letter.people.map(name => ({
-        nama: name,
-        nip: "",
-        pangkat: "",
-        jabatan: "",
-        unitKerja: "",
-        keterangan: ""
-      })),
+      menimbang: letter.menimbang ?? ["", ""],
+      dasar: letter.dasar ?? "",
+      people: letter.people,
       untuk: letter.title,
       useTTE: false,
       anchorSymbol: "caret",
-      useTableFormat: false,
-      signatureName: ""
+      useTableFormat: letter.useTableFormat ?? false,
+      signatureName: letter.signatureName ?? ""
     };
   };
 
@@ -102,7 +100,7 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
       subcategory: letter.subcategory,
       month: new Date(letter.createdAt).getMonth().toString().padStart(2, "0"),
       year: new Date(letter.createdAt).getFullYear().toString(),
-      kepada: letter.people[0] || "",
+      kepada: letter.people[0]?.nama || "",
       dari: "",
       perihal: letter.title,
       tanggalSurat: formatDate(new Date(letter.createdAt)),
@@ -117,9 +115,29 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
     };
   };
 
+  const convertToSuratKeputusanData = (letter: LetterHistory): SuratKeputusanData => {
+    return {
+      nomor: "",
+      category: letter.category,
+      subcategory: letter.subcategory,
+      month: new Date(letter.createdAt).getMonth().toString().padStart(2, "0"),
+      year: new Date(letter.createdAt).getFullYear().toString(),
+      tentang: letter.title,
+      person: letter.people[0] || { nama: "", nip: "", pangkat: "", jabatan: "", unitKerja: "", keterangan: "" },
+      memutuskan: {
+        pertama: "",
+        kedua: "",
+        ketiga: ""
+      },
+      useTTE: false,
+      anchorSymbol: "caret",
+      signatureName: ""
+    };
+  };
+
   const viewLetter = (letter: LetterHistory) => {
     setSelectedLetter(letter);
-    setIsSheetOpen(true);
+    setIsModalOpen(true);
   };
   
   return (
@@ -186,7 +204,12 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
                         )}
                         {documentType === "Nota Dinas" && (
                           <div className="text-sm text-muted-foreground mt-1">
-                            Kepada: {letter.people[0] || ""}
+                            Kepada: {letter.people[0]?.nama || ""}
+                          </div>
+                        )}
+                        {documentType === "Surat Keputusan" && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Tentang: {letter.people[0]?.nama || ""}
                           </div>
                         )}
                       </TableCell>
@@ -215,37 +238,52 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
         </CardContent>
       </Card>
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="w-[90%] sm:w-[80%] overflow-y-auto bg-white">
-          <SheetHeader>
-            <SheetTitle>Preview {selectedLetter?.category}</SheetTitle>
-          </SheetHeader>
-          {selectedLetter && (
-            <div className="mt-6">
-              {selectedLetter.category === "Surat Tugas" ? (
-                <LetterContent 
-                  formData={convertToFormData(selectedLetter)}
-                  staticData={staticData}
-                  formatLetterNumber={(num) => selectedLetter.letterNumber}
-                  getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                  getAnchorSymbol={() => "▢"}
-                  firstPagePeople={convertToFormData(selectedLetter).people}
-                  secondPagePeople={[]}
-                  needsPagination={false}
-                />
-              ) : (
-                <NotaDinasContent 
-                  formData={convertToNotaDinasData(selectedLetter)}
-                  staticData={notaDinasStaticData}
-                  formatLetterNumber={(num) => selectedLetter.letterNumber}
-                  getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                  getAnchorSymbol={() => "▢"}
-                />
-              )}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 bg-white animate-fadeIn scale-95 animate-in duration-300">
+          <DialogHeader className="flex flex-row items-center justify-between px-6 py-4 border-b">
+            <DialogTitle className="text-lg font-bold">Preview Full Screen</DialogTitle>
+            <DialogClose asChild>
+              <button className="p-2 rounded hover:bg-gray-100 transition" title="Tutup">
+                <X className="w-5 h-5" />
+              </button>
+            </DialogClose>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-6 bg-gray-50">
+            {selectedLetter && selectedLetter.documentType === "Surat Tugas" ? (
+              <LetterContent
+                formData={{ ...convertToFormData(selectedLetter), useTableFormat: selectedLetter.useTableFormat }}
+                staticData={staticData}
+                formatLetterNumber={(num) => selectedLetter.letterNumber}
+                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+                getAnchorSymbol={() => "▢"}
+                firstPagePeople={convertToFormData(selectedLetter).people}
+                secondPagePeople={[]}
+                needsPagination={false}
+              />
+            ) : selectedLetter && selectedLetter.documentType === "Nota Dinas" ? (
+              <NotaDinasContent
+                formData={convertToNotaDinasData(selectedLetter)}
+                staticData={notaDinasStaticData}
+                formatLetterNumber={(num) => selectedLetter.letterNumber}
+                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+                getAnchorSymbol={() => "▢"}
+              />
+            ) : selectedLetter && selectedLetter.documentType === "Surat Keputusan" ? (
+              <SuratKeputusanContent
+                formData={convertToSuratKeputusanData(selectedLetter)}
+                staticData={suratKeputusanStaticData}
+                formatLetterNumber={(num) => selectedLetter.letterNumber}
+                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+                getAnchorSymbol={() => "▢"}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Preview tidak tersedia</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

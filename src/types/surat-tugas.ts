@@ -1,5 +1,3 @@
-
-
 export interface Person {
   nama: string;
   nip: string;
@@ -15,10 +13,10 @@ export interface FormData {
   subcategory: string;
   month: string;
   year: string;
-  menimbangA: string;
+  menimbang: string[];
   dasar: string;
-  people: Person[];
   untuk: string;
+  people: Person[];
   useTTE: boolean;
   anchorSymbol: string;
   useTableFormat: boolean;
