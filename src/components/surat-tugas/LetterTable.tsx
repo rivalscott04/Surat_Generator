@@ -258,30 +258,38 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="max-w-3xl w-full p-8 overflow-y-auto" style={{ maxHeight: '90vh' }}>
             <div id="modal-print-content">
-              <LetterContent
-                formData={{
-                  nomor: selectedLetter.content?.nomor ?? '',
-                  category: selectedLetter.content?.category ?? '',
-                  subcategory: selectedLetter.content?.subcategory ?? '',
-                  month: selectedLetter.content?.month ?? '',
-                  year: selectedLetter.content?.year ?? '',
-                  menimbang: selectedLetter.content?.menimbang ?? ['', ''],
-                  dasar: selectedLetter.content?.dasar ?? '',
-                  untuk: selectedLetter.content?.untuk ?? '',
-                  people: selectedLetter.content?.people ?? [],
-                  useTTE: selectedLetter.content?.useTTE ?? false,
-                  anchorSymbol: selectedLetter.content?.anchorSymbol ?? 'caret',
-                  useTableFormat: selectedLetter.content?.useTableFormat ?? true,
-                  signatureName: selectedLetter.content?.signatureName ?? ''
-                }}
-                staticData={staticData}
-                formatLetterNumber={(_num, formData) => `${formData.nomor}/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`}
-                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                getAnchorSymbol={() => 'caret'}
-                firstPagePeople={selectedLetter.content?.people ?? []}
-                secondPagePeople={[]}
-                needsPagination={false}
-              />
+              {(() => {
+                const maxPerPage = 3;
+                const people = selectedLetter.content?.people ?? [];
+                const firstPagePeople = people.slice(0, maxPerPage);
+                const secondPagePeople = people.slice(maxPerPage);
+                return (
+                  <LetterContent
+                    formData={{
+                      nomor: selectedLetter.content?.nomor ?? '',
+                      category: selectedLetter.content?.category ?? '',
+                      subcategory: selectedLetter.content?.subcategory ?? '',
+                      month: selectedLetter.content?.month ?? '',
+                      year: selectedLetter.content?.year ?? '',
+                      menimbang: selectedLetter.content?.menimbang ?? ['', ''],
+                      dasar: selectedLetter.content?.dasar ?? '',
+                      untuk: selectedLetter.content?.untuk ?? '',
+                      people: selectedLetter.content?.people ?? [],
+                      useTTE: selectedLetter.content?.useTTE ?? false,
+                      anchorSymbol: selectedLetter.content?.anchorSymbol ?? 'caret',
+                      useTableFormat: selectedLetter.content?.useTableFormat ?? true,
+                      signatureName: selectedLetter.content?.signatureName ?? ''
+                    }}
+                    staticData={staticData}
+                    formatLetterNumber={(_num, formData) => `${formData.nomor}/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`}
+                    getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+                    getAnchorSymbol={() => 'caret'}
+                    firstPagePeople={firstPagePeople}
+                    secondPagePeople={secondPagePeople}
+                    needsPagination={secondPagePeople.length > 0}
+                  />
+                );
+              })()}
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button

@@ -43,6 +43,11 @@ export default function PrintSuratTugas() {
   if (loading) return <div className="p-8 text-center">Memuat surat...</div>;
   if (error || !data) return <div className="p-8 text-center text-red-600">{error || "Surat tidak ditemukan"}</div>;
 
+  const maxPerPage = 3;
+  const people = data.people ?? [];
+  const firstPagePeople = people.slice(0, maxPerPage);
+  const secondPagePeople = people.slice(maxPerPage);
+
   return (
     <div className="bg-white min-h-screen p-8 print:p-0">
       <LetterContent
@@ -65,9 +70,9 @@ export default function PrintSuratTugas() {
         formatLetterNumber={(_num, formData) => `${formData.nomor}/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`}
         getCurrentDate={() => new Date(data.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
         getAnchorSymbol={() => "caret"}
-        firstPagePeople={data.people ?? []}
-        secondPagePeople={[]}
-        needsPagination={false}
+        firstPagePeople={firstPagePeople}
+        secondPagePeople={secondPagePeople}
+        needsPagination={secondPagePeople.length > 0}
       />
       <div className="mt-8 flex justify-center print:hidden">
         <button onClick={() => {
