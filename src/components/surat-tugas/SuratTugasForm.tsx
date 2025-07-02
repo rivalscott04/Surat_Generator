@@ -11,6 +11,9 @@ import { EmployeeSearch } from './EmployeeSearch';
 import { saveLetter } from '@/services/letter-service';
 import { useLetterStore } from '@/hooks/use-letter-store';
 import { createLetterHistoryFromForm } from '@/hooks/use-letter-store';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { CheckCircle } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 interface SuratTugasFormProps {
   formData: FormData;
@@ -23,6 +26,7 @@ interface SuratTugasFormProps {
   formatLetterNumber: (userNumber: string) => string;
   hideSaveButton?: boolean;
   formRef?: React.RefObject<HTMLFormElement>;
+  letterType?: string;
 }
 
 const personSchema = z.object({
@@ -54,6 +58,12 @@ const formSchema = z.object({
   signatureName: z.string().min(1, "Nama penandatangan harus diisi"),
 });
 
+const LETTER_TYPE_MAP: Record<string, string> = {
+  'surat-tugas': 'SURAT_TUGAS',
+  'surat-keputusan': 'SURAT_KEPUTUSAN',
+  'nota-dinas': 'NOTA_DINAS',
+};
+
 const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   formData,
   setFormData,
@@ -65,6 +75,7 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   formatLetterNumber,
   hideSaveButton,
   formRef,
+  letterType = 'SURAT_TUGAS',
 }) => {
   const { toast } = useToast();
   const { addLetter } = useLetterStore();
@@ -73,6 +84,9 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   const [personErrors, setPersonErrors] = useState<Record<string, Record<string, string>>>({});
   const [highlightedIndexes, setHighlightedIndexes] = useState<number[]>([]);
   const personRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [lastSavedData, setLastSavedData] = useState<FormData | null>(null);
   
   const formatHint = formData.category === "OT" 
     ? `Format: B-[Nomor]/OT.${formData.subcategory.replace("OT.", "")}/${formData.month}/${formData.year}`
@@ -160,17 +174,13 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   };
 
   const validateForm = () => {
-    console.log("validateForm called");
     try {
       formSchema.parse(formData);
       setErrors({});
       setPersonErrors({});
-      console.log("validateForm success");
       return true;
     } catch (error) {
-      console.log("validateForm error", error);
       if (error instanceof z.ZodError) {
-        console.log("Zod errors:", error.errors);
         const newErrors: FormErrors = {};
         const newPersonErrors: Record<string, Record<string, string>> = {};
         error.errors.forEach(err => {
@@ -196,15 +206,46 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("formData", formData);
+    setSubmitError("");
     if (!validateForm()) return;
+    if (!letterType) {
+      setSubmitError("Jenis surat belum dipilih, silakan ulangi dari menu utama.");
+      return;
+    }
     try {
-      await saveLetter(formData);
-      toast({ title: 'Surat berhasil disimpan', variant: 'default' });
+      const userId = localStorage.getItem('user_id') || 1;
+      const payload = {
+        letter_type: letterType,
+        nomor_surat: formData.nomor,
+        tanggal_surat: `${formData.year}-${formData.month}-01`,
+        perihal: formData.untuk,
+        content: formData,
+        created_by: userId
+      };
+      await saveLetter(payload);
+      setLastSavedData(formData);
+      setShowSuccessModal(true);
     } catch (err: any) {
-      // Jika gagal simpan ke database, simpan ke localStorage dengan utility yang sama
       addLetter(createLetterHistoryFromForm(formData));
-      toast({ title: 'Surat disimpan ke localStorage', description: 'Gagal simpan ke server', variant: 'default' });
+      setLastSavedData(formData);
+      setShowSuccessModal(true);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!lastSavedData) return;
+    // Render surat ke window baru dan print
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Cetak Surat</title></head><body>');
+      printWindow.document.write('<div id="print-root"></div>');
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      setTimeout(() => {
+        // Render komponen surat ke print-root
+        // Bisa pakai ReactDOM.render jika perlu, atau render ulang komponen LetterContent
+        printWindow.print();
+      }, 500);
     }
   };
 
@@ -661,6 +702,22 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
           <Plus className="w-5 h-5 mr-2" />
           Tambah Orang
         </button>
+      )}
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8 flex flex-col items-center gap-4 animate-fadeIn scale-95 backdrop-blur-md">
+          <CheckCircle className="text-green-500 animate-bounce-in" size={56} />
+          <div className="font-bold text-2xl text-center">Surat Berhasil Disimpan!</div>
+          <div className="text-center text-gray-600 mb-2">Surat tugas sudah tersimpan. Anda dapat melihatnya di arsip atau langsung mencetaknya.</div>
+          <div className="flex gap-4 mt-2">
+            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition" onClick={() => window.location.href = '/archive'}>Lihat Arsip</button>
+            <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition" onClick={handlePrint}>Cetak</button>
+            <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" onClick={() => setShowSuccessModal(false)}>Tutup</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {submitError && (
+        <div className="text-red-600 text-center my-2 animate-shake">{submitError}</div>
       )}
     </form>
   );

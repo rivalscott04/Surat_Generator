@@ -1,4 +1,3 @@
-
 import React from "react";
 import { NotaDinasData } from "@/types/nota-dinas";
 import { Input } from "@/components/ui/input";
@@ -20,6 +19,7 @@ interface NotaDinasFormProps {
   updateFormData: (data: Partial<NotaDinasData>) => void;
   categoryOptions: { id: string; name: string }[];
   errors: Record<string, string>;
+  letterType?: string;
 }
 
 const NotaDinasForm: React.FC<NotaDinasFormProps> = ({
@@ -30,7 +30,10 @@ const NotaDinasForm: React.FC<NotaDinasFormProps> = ({
   updateFormData,
   categoryOptions,
   errors,
+  letterType = 'NOTA_DINAS',
 }) => {
+  const [submitError, setSubmitError] = React.useState("");
+
   const days = [
     { value: "Senin", text: "Senin" },
     { value: "Selasa", text: "Selasa" },
@@ -45,6 +48,16 @@ const NotaDinasForm: React.FC<NotaDinasFormProps> = ({
   const formatHint = formData.category === "OT" 
     ? `Format: B-[Nomor]/OT.${formData.subcategory.replace("OT.", "")}/${formData.month}/${formData.year}`
     : `Format: [Nomor]/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError("");
+    if (!letterType) {
+      setSubmitError("Jenis surat belum dipilih, silakan ulangi dari menu utama.");
+      return;
+    }
+    // ... existing code ...
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 h-full overflow-y-auto">
@@ -345,6 +358,10 @@ const NotaDinasForm: React.FC<NotaDinasFormProps> = ({
         <div className="mt-2 text-xs text-gray-500">
           * Kolom yang bertanda bintang wajib diisi
         </div>
+
+        {submitError && (
+          <div className="text-red-600 text-center my-2 animate-shake">{submitError}</div>
+        )}
       </form>
     </div>
   );

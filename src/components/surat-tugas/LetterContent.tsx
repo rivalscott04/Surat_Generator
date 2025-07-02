@@ -8,7 +8,7 @@ import SignatureSection from "./SignatureSection";
 interface LetterContentProps {
   formData: FormData;
   staticData: StaticData;
-  formatLetterNumber: (userNumber: string) => string;
+  formatLetterNumber: (userNumber: string, formData: FormData) => string;
   getCurrentDate: () => string;
   getAnchorSymbol: () => string;
   firstPagePeople: Person[];
@@ -34,8 +34,8 @@ const LetterContent: React.FC<LetterContentProps> = ({
         style={{ fontFamily: "Arial, sans-serif", fontSize: "12pt", textAlign: "justify" }}
       >
         <LetterHeader 
-          staticData={staticData} 
-          formattedNumber={formatLetterNumber(formData.nomor)} 
+          staticData={staticData}
+          formattedNumber={formatLetterNumber(formData.nomor, formData)}
         />
 
         {/* Fixed layout for sections to prevent overlap */}
@@ -45,7 +45,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
             <div className="w-[120px] font-bold">Menimbang</div>
             <div className="w-[20px] text-center">:</div>
             <div className="flex-1 text-justify">
-              {formData.menimbang && formData.menimbang.map((item, idx) => (
+              {(formData.menimbang ?? []).map((item, idx) => (
                 <div className="mb-2 flex items-start" key={idx}>
                   <span className="mr-1">{String.fromCharCode(97 + idx)}.</span>
                   <span className="flex-1 text-justify whitespace-pre-line break-words">{item}</span>
@@ -74,7 +74,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
                 <PeopleTable people={firstPagePeople} /> : 
                 <PeopleList 
                   people={firstPagePeople} 
-                  totalPeople={formData.people.length} 
+                  totalPeople={(formData.people ?? []).length} 
                 />
               }
             </div>
@@ -98,7 +98,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
               <SignatureSection 
                 getCurrentDate={getCurrentDate} 
                 useTTE={formData.useTTE} 
-                anchorSymbol={getAnchorSymbol()} 
+                anchorSymbol={formData.anchorSymbol} 
                 signatureName={formData.signatureName}
               />
             </>
@@ -120,7 +120,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
                 <PeopleList 
                   people={secondPagePeople} 
                   startIndex={firstPagePeople.length} 
-                  totalPeople={formData.people.length} 
+                  totalPeople={(formData.people ?? []).length} 
                 />
               }
             </div>
@@ -140,7 +140,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
           <SignatureSection 
             getCurrentDate={getCurrentDate} 
             useTTE={formData.useTTE} 
-            anchorSymbol={getAnchorSymbol()} 
+            anchorSymbol={formData.anchorSymbol} 
             signatureName={formData.signatureName}
           />
         </div>

@@ -1,22 +1,70 @@
-
 import { useLetterStore } from "@/hooks/use-letter-store";
 import LetterTable from "@/components/surat-tugas/LetterTable";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, FileText, FileSpreadsheet, FileCheck } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 const Archive = () => {
-  const { letters, clearStorage } = useLetterStore();
+  const { letters: localLetters, clearStorage } = useLetterStore();
   const [activeTab, setActiveTab] = useState("surat-tugas");
-  
-  // Filter letters based on document type
-  const suratTugasLetters = letters.filter(letter => letter.documentType === "Surat Tugas");
-  const notaDinasLetters = letters.filter(letter => letter.documentType === "Nota Dinas");
-  const suratKeputusanLetters = letters.filter(letter => letter.documentType === "Surat Keputusan");
-  
+  const [serverLetters, setServerLetters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    async function fetchLetters() {
+      setLoading(true);
+      setError("");
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:3000/api/letters', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Gagal mengambil data arsip dari server');
+        const data = await res.json();
+        setServerLetters(data);
+      } catch (err: any) {
+        setError(err.message || 'Gagal mengambil data arsip');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLetters();
+  }, []);
+
+  // Mapping data backend ke LetterHistory agar LetterTable bisa render
+  function mapServerToLetterHistory(server) {
+    const contentObj = typeof server.content === "string"
+      ? JSON.parse(server.content)
+      : (server.content || {});
+    return {
+      id: String(server.id),
+      letterNumber: server.nomor_surat,
+      category: server.letter_type,
+      subcategory: contentObj.subcategory || "",
+      documentType: server.letter_type === "KP" ? "Surat Tugas" : server.letter_type,
+      createdAt: server.created_at,
+      people: contentObj.people ?? [],
+      title: server.perihal,
+      useTableFormat: contentObj.useTableFormat,
+      menimbang: contentObj.menimbang ?? ["", ""],
+      dasar: contentObj.dasar ?? "",
+      signatureName: contentObj.signatureName ?? "",
+      content: contentObj
+    };
+  }
+
+  const suratTugasLetters = [
+    ...serverLetters.filter(l => l.letter_type === "KP" || l.letter_type === "SURAT_TUGAS").map(mapServerToLetterHistory),
+    ...localLetters.filter(letter => letter.documentType === "Surat Tugas")
+  ];
+  const notaDinasLetters = localLetters.filter(letter => letter.documentType === "Nota Dinas");
+  const suratKeputusanLetters = localLetters.filter(letter => letter.documentType === "Surat Keputusan");
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
@@ -50,44 +98,46 @@ const Archive = () => {
             </Button>
           </div>
         </div>
-        
-        <Tabs defaultValue="surat-tugas" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="mb-4">
-            <TabsTrigger value="surat-tugas" className="flex items-center">
-              <FileText className="mr-2 h-4 w-4" />
-              Surat Tugas
-            </TabsTrigger>
-            <TabsTrigger value="nota-dinas" className="flex items-center">
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Nota Dinas
-            </TabsTrigger>
-            <TabsTrigger value="surat-keputusan" className="flex items-center">
-              <FileCheck className="mr-2 h-4 w-4" />
-              Surat Keputusan
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="surat-tugas" className="mt-0">
-            <LetterTable 
-              letters={suratTugasLetters} 
-              documentType="Surat Tugas"
-            />
-          </TabsContent>
-          
-          <TabsContent value="nota-dinas" className="mt-0">
-            <LetterTable 
-              letters={notaDinasLetters} 
-              documentType="Nota Dinas"
-            />
-          </TabsContent>
-          
-          <TabsContent value="surat-keputusan" className="mt-0">
-            <LetterTable 
-              letters={suratKeputusanLetters} 
-              documentType="Surat Keputusan"
-            />
-          </TabsContent>
-        </Tabs>
+        {loading ? (
+          <div className="text-center py-12 text-lg text-gray-500">Memuat data arsip dari server...</div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-600">{error}</div>
+        ) : (
+          <Tabs defaultValue="surat-tugas" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="mb-4">
+              <TabsTrigger value="surat-tugas" className="flex items-center">
+                <FileText className="mr-2 h-4 w-4" />
+                Surat Tugas
+              </TabsTrigger>
+              <TabsTrigger value="nota-dinas" className="flex items-center">
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Nota Dinas
+              </TabsTrigger>
+              <TabsTrigger value="surat-keputusan" className="flex items-center">
+                <FileCheck className="mr-2 h-4 w-4" />
+                Surat Keputusan
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="surat-tugas" className="mt-0">
+              <LetterTable 
+                letters={suratTugasLetters} 
+                documentType="Surat Tugas"
+              />
+            </TabsContent>
+            <TabsContent value="nota-dinas" className="mt-0">
+              <LetterTable 
+                letters={notaDinasLetters} 
+                documentType="Nota Dinas"
+              />
+            </TabsContent>
+            <TabsContent value="surat-keputusan" className="mt-0">
+              <LetterTable 
+                letters={suratKeputusanLetters} 
+                documentType="Surat Keputusan"
+              />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
       <Toaster />
     </div>

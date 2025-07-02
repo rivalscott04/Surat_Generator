@@ -13,6 +13,7 @@ export interface LetterHistory {
   menimbang: string[]; // point a dan b
   dasar: string;
   signatureName?: string;
+  content?: any;
 }
 
 export type LetterHistoryStore = {

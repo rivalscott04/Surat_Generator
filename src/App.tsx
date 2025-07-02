@@ -22,17 +22,12 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <div className="app">
-        <Routes>
-          <Route path="/" element={<Portal />} />
-          <Route path="/surat-tugas" element={<SuratTugas />} />
-          <Route path="/nota-dinas" element={<NotaDinas />} />
-          <Route path="/archive" element={<Archive />} />
-          <Route path="/surat-keputusan" element={<SuratKeputusan />} />
-        </Routes>
-        <Toaster />
-      </div>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Portal />} />
+      <Route path="/surat-tugas" element={<SuratTugas />} />
+      <Route path="/nota-dinas" element={<NotaDinas />} />
+      <Route path="/archive" element={<Archive />} />
+      <Route path="/surat-keputusan" element={<SuratKeputusan />} />
+    </Routes>
   );
 }

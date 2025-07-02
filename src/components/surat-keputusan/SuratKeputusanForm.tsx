@@ -1,4 +1,3 @@
-
 import React, { Dispatch, SetStateAction, useState } from "react";
 import { FileText } from "lucide-react";
 import { SuratKeputusanData } from "@/types/surat-keputusan";
@@ -37,6 +36,7 @@ interface SuratKeputusanFormProps {
   setFormData: Dispatch<SetStateAction<SuratKeputusanData>>;
   subcategoryOptions: { value: string; text: string }[];
   formatLetterNumber: (userNumber: string) => string;
+  letterType?: string;
 }
 
 const SuratKeputusanForm: React.FC<SuratKeputusanFormProps> = ({
@@ -44,10 +44,12 @@ const SuratKeputusanForm: React.FC<SuratKeputusanFormProps> = ({
   setFormData,
   subcategoryOptions,
   formatLetterNumber,
+  letterType = 'SURAT_KEPUTUSAN',
 }) => {
   const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [personErrors, setPersonErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState("");
 
   const handleEmployeeSelect = (employee: Partial<typeof formData.person>) => {
     setFormData((prev) => ({
@@ -142,6 +144,19 @@ const SuratKeputusanForm: React.FC<SuratKeputusanFormProps> = ({
       }
       return false;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError("");
+    if (!letterType) {
+      setSubmitError("Jenis surat belum dipilih, silakan ulangi dari menu utama.");
+      return;
+    }
+    if (!validateForm()) {
+      return;
+    }
+    // ... existing code ...
   };
 
   return (
@@ -316,6 +331,10 @@ const SuratKeputusanForm: React.FC<SuratKeputusanFormProps> = ({
           * Kolom yang bertanda bintang wajib diisi
         </div>
       </div>
+
+      {submitError && (
+        <div className="text-red-600 text-center my-2 animate-shake">{submitError}</div>
+      )}
     </div>
   );
 };

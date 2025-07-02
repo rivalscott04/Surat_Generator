@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Search, ArrowUpDown, FileText, Maximize2, X } from "lucide-react";
 import { 
   Table, 
@@ -20,6 +20,15 @@ import { NotaDinasData, staticData as notaDinasStaticData } from "@/types/nota-d
 import SuratKeputusanContent from "../surat-keputusan/SuratKeputusanContent";
 import { SuratKeputusanData, staticData as suratKeputusanStaticData } from "@/types/surat-keputusan";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { useReactToPrint } from "react-to-print";
+import { Link, useNavigate } from "react-router-dom";
+import html2pdf from "html2pdf.js";
+import { Worker, Viewer } from '@react-pdf-viewer/core';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import { PDFViewer } from '@react-pdf/renderer';
+import SuratTugasPDF from './SuratTugasPDF';
+import { Document, Page } from 'react-pdf';
+import { useEffect } from 'react';
 
 interface LetterTableProps {
   letters: LetterHistory[];
@@ -34,6 +43,10 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
     key: keyof LetterHistory;
     direction: "asc" | "desc";
   }>({ key: "createdAt", direction: "desc" });
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const suratRef = useRef<HTMLDivElement>(null);
   
   const handleSort = (key: keyof LetterHistory) => {
     setSortConfig({
@@ -136,10 +149,17 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
   };
 
   const viewLetter = (letter: LetterHistory) => {
-    setSelectedLetter(letter);
-    setIsModalOpen(true);
+    navigate(`/print/${letter.id}`);
   };
   
+  const symbolMap = {
+    caret: '^',
+    hash: '#',
+    dollar: '$',
+  };
+
+  const printRef = useRef(null);
+  const navigate = useNavigate();
   return (
     <>
       <Card>
@@ -199,7 +219,7 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
                         {letter.title}
                         {documentType === "Surat Tugas" && (
                           <div className="text-sm text-muted-foreground mt-1">
-                            {letter.people.length} orang
+                            {(letter.people ?? []).length} orang
                           </div>
                         )}
                         {documentType === "Nota Dinas" && (
@@ -219,7 +239,7 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
                           onClick={() => viewLetter(letter)}
                           className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3"
                         >
-                          <FileText className="mr-2 h-4 w-4" /> 
+                          <FileText className="mr-2 h-4 w-4" />
                           Lihat
                         </button>
                       </TableCell>
@@ -238,52 +258,48 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 bg-white animate-fadeIn scale-95 animate-in duration-300">
-          <DialogHeader className="flex flex-row items-center justify-between px-6 py-4 border-b">
-            <DialogTitle className="text-lg font-bold">Preview Full Screen</DialogTitle>
-            <DialogClose asChild>
-              <button className="p-2 rounded hover:bg-gray-100 transition" title="Tutup">
-                <X className="w-5 h-5" />
-              </button>
-            </DialogClose>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto p-6 bg-gray-50">
-            {selectedLetter && selectedLetter.documentType === "Surat Tugas" ? (
-              <LetterContent
-                formData={{ ...convertToFormData(selectedLetter), useTableFormat: selectedLetter.useTableFormat }}
-                staticData={staticData}
-                formatLetterNumber={(num) => selectedLetter.letterNumber}
-                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                getAnchorSymbol={() => "▢"}
-                firstPagePeople={convertToFormData(selectedLetter).people}
-                secondPagePeople={[]}
-                needsPagination={false}
-              />
-            ) : selectedLetter && selectedLetter.documentType === "Nota Dinas" ? (
-              <NotaDinasContent
-                formData={convertToNotaDinasData(selectedLetter)}
-                staticData={notaDinasStaticData}
-                formatLetterNumber={(num) => selectedLetter.letterNumber}
-                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                getAnchorSymbol={() => "▢"}
-              />
-            ) : selectedLetter && selectedLetter.documentType === "Surat Keputusan" ? (
-              <SuratKeputusanContent
-                formData={convertToSuratKeputusanData(selectedLetter)}
-                staticData={suratKeputusanStaticData}
-                formatLetterNumber={(num) => selectedLetter.letterNumber}
-                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-                getAnchorSymbol={() => "▢"}
-              />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Preview tidak tersedia</p>
-              </div>
-            )}
+      {/* Hidden div for LetterContent to generate PDF */}
+      {selectedLetter && (
+        <div style={{ display: 'none' }}>
+          <div ref={suratRef}>
+            <LetterContent
+              formData={{
+                nomor: selectedLetter.content?.nomor ?? '',
+                category: selectedLetter.content?.category ?? '',
+                subcategory: selectedLetter.content?.subcategory ?? '',
+                month: selectedLetter.content?.month ?? '',
+                year: selectedLetter.content?.year ?? '',
+                menimbang: selectedLetter.content?.menimbang ?? ['', ''],
+                dasar: selectedLetter.content?.dasar ?? '',
+                untuk: selectedLetter.content?.untuk ?? '',
+                people: selectedLetter.content?.people ?? [],
+                useTTE: selectedLetter.content?.useTTE ?? false,
+                anchorSymbol: selectedLetter.content?.anchorSymbol ?? 'caret',
+                useTableFormat: selectedLetter.content?.useTableFormat ?? true,
+                signatureName: selectedLetter.content?.signatureName ?? ''
+              }}
+              staticData={staticData}
+              formatLetterNumber={(num) => num}
+              getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+              getAnchorSymbol={() => 'caret'}
+              firstPagePeople={selectedLetter.content?.people ?? []}
+              secondPagePeople={[]}
+              needsPagination={false}
+            />
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
+
+      {/* PDF Viewer */}
+      {pdfBlobUrl && (
+        <div style={{ width: '100vw', height: '100vh', position: 'fixed', left: 0, top: 0, zIndex: 1000, background: '#eee' }}>
+          <Document file={pdfBlobUrl} onLoadError={console.error}>
+            <Page pageNumber={1} width={window.innerWidth - 32} />
+          </Document>
+          <button onClick={() => { setSelectedLetter(null); setPdfBlobUrl(null); }} style={{ position: 'absolute', top: 16, right: 16, zIndex: 1100, background: '#fff', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}>Tutup</button>
+          <a href={pdfBlobUrl} download="SuratTugas.pdf" style={{ position: 'absolute', top: 16, left: 16, zIndex: 1100, background: '#4caf50', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', textDecoration: 'none' }}>Download</a>
+        </div>
+      )}
     </>
   );
 };

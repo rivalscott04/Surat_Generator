@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { FileText, Printer, Save, BookMarked } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -148,6 +147,7 @@ export default function SuratKeputusan() {
             setFormData={setFormData}
             subcategoryOptions={subcategoryOptions}
             formatLetterNumber={formatLetterNumberWithData}
+            letterType="SURAT_KEPUTUSAN"
           />
 
           <div className="bg-white rounded-lg shadow-md p-6">

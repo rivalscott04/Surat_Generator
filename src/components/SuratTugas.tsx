@@ -239,6 +239,7 @@ const SuratTugas = () => {
             formatLetterNumber={formatLetterNumberWithData}
             hideSaveButton={true}
             formRef={formRef}
+            letterType="SURAT_TUGAS"
           />
 
           <div className="bg-white rounded-lg shadow-md p-6 relative">

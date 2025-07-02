@@ -1,4 +1,3 @@
-
 import React from "react";
 
 interface SignatureSectionProps {
@@ -14,6 +13,12 @@ const SignatureSection: React.FC<SignatureSectionProps> = ({
   anchorSymbol,
   signatureName 
 }) => {
+  const symbolMap: Record<string, string> = {
+    caret: '^',
+    pagar: '#',
+    dolar: '$',
+  };
+
   return (
     <div className="mt-12">
       <div className="flex justify-end">
@@ -25,7 +30,7 @@ const SignatureSection: React.FC<SignatureSectionProps> = ({
             <div className="h-24 relative">
               {useTTE && (
                 <div className="absolute w-full text-left top-1/3">
-                  <span className="font-bold" style={{ marginLeft: "4px" }}>{anchorSymbol}</span>
+                  <span className="font-bold" style={{ marginLeft: "4px" }}>{symbolMap[anchorSymbol] || anchorSymbol}</span>
                 </div>
               )}
             </div>

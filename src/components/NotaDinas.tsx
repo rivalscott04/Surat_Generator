@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { ClipboardList, Printer, Save, BookMarked } from "lucide-react";
 import type { ChangeEvent } from "react";
@@ -200,6 +199,7 @@ const NotaDinas = () => {
             updateFormData={updateFormData}
             categoryOptions={categoryOptions}
             errors={errors}
+            letterType="NOTA_DINAS"
           />
 
           <div className="bg-white rounded-lg shadow-md p-6">
