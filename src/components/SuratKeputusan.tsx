@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { SuratKeputusanData, staticData } from "@/types/surat-keputusan";
 import { formatLetterNumber, getCurrentDate, getAnchorSymbol } from "@/utils/letter-utils";
 import { anchorSymbols } from "@/types/surat-tugas";
-import { useLetterStore, createLetterHistoryFromSuratKeputusan } from "@/hooks/use-letter-store";
 import { useToast } from "@/hooks/use-toast";
 import SuratKeputusanForm from "./surat-keputusan/SuratKeputusanForm";
 import SuratKeputusanContent from "./surat-keputusan/SuratKeputusanContent";
@@ -61,7 +60,6 @@ export default function SuratKeputusan() {
   const [subcategoryOptions, setSubcategoryOptions] = useState<{ value: string, text: string }[]>([]);
   const [showToast, setShowToast] = useState(false);
 
-  const { addLetter } = useLetterStore();
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -114,8 +112,6 @@ export default function SuratKeputusan() {
       return;
     }
 
-    const letterHistory = createLetterHistoryFromSuratKeputusan(formData);
-    addLetter(letterHistory);
     setShowToast(true);
     
     toast({

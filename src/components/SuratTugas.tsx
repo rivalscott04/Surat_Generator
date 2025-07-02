@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 import { getSubcategoryOptions } from "../data/letterCategories";
 import { FormData, Person, staticData, anchorSymbols } from "../types/surat-tugas";
 import { formatLetterNumber, getCurrentDate, getAnchorSymbol } from "../utils/letter-utils";
-import { useLetterStore, createLetterHistoryFromForm } from "../hooks/use-letter-store";
 import { useToast } from "../hooks/use-toast";
 import SuratTugasForm from "./surat-tugas/SuratTugasForm";
 import LetterContent from "./surat-tugas/LetterContent";
@@ -34,7 +33,6 @@ const formSchema = z.object({
 const SuratTugas = () => {
   const currentYear = new Date().getFullYear().toString();
   const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, "0");
-  const { addLetter } = useLetterStore();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -183,8 +181,6 @@ const SuratTugas = () => {
       return;
     }
 
-    const letterHistory = createLetterHistoryFromForm(formData);
-    addLetter(letterHistory);
     setShowToast(true);
   };
 

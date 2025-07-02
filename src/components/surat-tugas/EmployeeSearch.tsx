@@ -10,6 +10,7 @@ import {
 import { Person } from '@/types/surat-tugas';
 import { searchEmployees } from '@/services/employee-service';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useAuth } from '@/context/AuthContext';
 
 interface EmployeeSearchProps {
   index: number;
@@ -23,6 +24,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
   const [selected, setSelected] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
     // Deteksi apakah input NIP (angka) atau nama (huruf)
@@ -31,7 +33,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
       return;
     }
     if ((isNip && debouncedSearch.length >= 5) || (!isNip && debouncedSearch.length >= 4)) {
-      searchEmployees(debouncedSearch)
+      searchEmployees(debouncedSearch, token)
         .then((res) => {
           console.log('EMPLOYEES:', res);
           setEmployees(res);

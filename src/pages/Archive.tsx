@@ -8,7 +8,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 const Archive = () => {
-  const { letters: localLetters, clearStorage } = useLetterStore();
   const [activeTab, setActiveTab] = useState("surat-tugas");
   const [serverLetters, setServerLetters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,12 +57,9 @@ const Archive = () => {
     };
   }
 
-  const suratTugasLetters = [
-    ...serverLetters.filter(l => l.letter_type === "KP" || l.letter_type === "SURAT_TUGAS").map(mapServerToLetterHistory),
-    ...localLetters.filter(letter => letter.documentType === "Surat Tugas")
-  ];
-  const notaDinasLetters = localLetters.filter(letter => letter.documentType === "Nota Dinas");
-  const suratKeputusanLetters = localLetters.filter(letter => letter.documentType === "Surat Keputusan");
+  const suratTugasLetters = serverLetters.filter(l => l.letter_type === "KP" || l.letter_type === "SURAT_TUGAS").map(mapServerToLetterHistory);
+  const notaDinasLetters = [];
+  const suratKeputusanLetters = [];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -89,13 +85,6 @@ const Archive = () => {
                 Buat Surat Keputusan
               </Button>
             </Link>
-            <Button 
-              onClick={clearStorage} 
-              variant="outline" 
-              className="text-red-600 border-red-600 hover:bg-red-50"
-            >
-              Clear Storage
-            </Button>
           </div>
         </div>
         {loading ? (

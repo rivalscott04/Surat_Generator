@@ -15,13 +15,12 @@ export async function login(username: string, password: string) {
   });
   if (!res.ok) throw new Error('Login gagal');
   const data = await res.json();
-  localStorage.setItem('token', data.token); // Simpan token
+  // TODO: Use a secure auth context or cookie for token management
   return data;
 }
 
 // Service pencarian pegawai ke API BE
-export async function searchEmployees(query: string) {
-  const token = localStorage.getItem('token');
+export async function searchEmployees(query: string, token: string) {
   if (!token) throw new Error('Belum login');
 
   // Deteksi apakah query NIP (angka) atau nama (huruf)

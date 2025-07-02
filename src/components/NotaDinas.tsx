@@ -6,7 +6,6 @@ import { getSubcategoryOptions, getCategoryOptions } from "../data/letterCategor
 import { staticData } from "../types/nota-dinas";
 import { NotaDinasData } from "../types/nota-dinas";
 import { formatLetterNumber, getCurrentDate, getAnchorSymbol } from "../utils/letter-utils";
-import { useLetterStore } from "../hooks/use-letter-store";
 import { useToast } from "../hooks/use-toast";
 import NotaDinasForm from "./nota-dinas/NotaDinasForm";
 import NotaDinasContent from "./nota-dinas/NotaDinasContent";
@@ -32,7 +31,6 @@ const NotaDinas = () => {
   const currentYear = new Date().getFullYear().toString();
   const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, "0");
   const todayFormatted = format(new Date(), "d MMMM yyyy", { locale: id });
-  const { addLetter } = useLetterStore();
   const { toast } = useToast();
   const [categoryOptions] = useState(getCategoryOptions());
 
@@ -161,7 +159,6 @@ const NotaDinas = () => {
       title: `Nota Dinas - ${formData.perihal}`
     };
     
-    addLetter(letterHistory);
     setShowToast(true);
   };
   

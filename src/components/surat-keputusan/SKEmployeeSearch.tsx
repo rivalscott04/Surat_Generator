@@ -1,8 +1,8 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty } from "@/components/ui/command";
 import { Person } from "@/types/surat-tugas";
 import { searchEmployees } from "@/services/employee-service";
+import { useAuth } from '@/context/AuthContext';
 
 interface SKEmployeeSearchProps {
   value: Person;
@@ -16,18 +16,19 @@ const SKEmployeeSearch: React.FC<SKEmployeeSearchProps> = ({ value, onSelect, er
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
     if (search.length > 2) {
       setLoading(true);
-      searchEmployees(search).then(res => {
+      searchEmployees(search, token).then(res => {
         setEmployees(res);
         setLoading(false);
       });
     } else {
       setEmployees([]);
     }
-  }, [search]);
+  }, [search, token]);
 
   useEffect(() => {
     if (open && inputRef.current) {

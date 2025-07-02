@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmployeeSearch } from './EmployeeSearch';
 import { saveLetter } from '@/services/letter-service';
-import { useLetterStore } from '@/hooks/use-letter-store';
-import { createLetterHistoryFromForm } from '@/hooks/use-letter-store';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CheckCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -78,7 +76,6 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
   letterType = 'SURAT_TUGAS',
 }) => {
   const { toast } = useToast();
-  const { addLetter } = useLetterStore();
   const categoryOptions = getCategoryOptions();
   const [errors, setErrors] = useState<FormErrors>({});
   const [personErrors, setPersonErrors] = useState<Record<string, Record<string, string>>>({});
@@ -213,7 +210,7 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
       return;
     }
     try {
-      const userId = localStorage.getItem('user_id') || 1;
+      const userId = 1; // TODO: Replace with actual user ID from auth context if needed
       const payload = {
         letter_type: letterType,
         nomor_surat: formData.nomor,
@@ -226,7 +223,6 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
       setLastSavedData(formData);
       setShowSuccessModal(true);
     } catch (err: any) {
-      addLetter(createLetterHistoryFromForm(formData));
       setLastSavedData(formData);
       setShowSuccessModal(true);
     }

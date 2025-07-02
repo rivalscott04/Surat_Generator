@@ -22,12 +22,6 @@ import { SuratKeputusanData, staticData as suratKeputusanStaticData } from "@/ty
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { useReactToPrint } from "react-to-print";
 import { Link, useNavigate } from "react-router-dom";
-import html2pdf from "html2pdf.js";
-import { Worker, Viewer } from '@react-pdf-viewer/core';
-import '@react-pdf-viewer/core/lib/styles/index.css';
-import { PDFViewer } from '@react-pdf/renderer';
-import SuratTugasPDF from './SuratTugasPDF';
-import { Document, Page } from 'react-pdf';
 import { useEffect } from 'react';
 
 interface LetterTableProps {
@@ -149,7 +143,8 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
   };
 
   const viewLetter = (letter: LetterHistory) => {
-    navigate(`/print/${letter.id}`);
+    setSelectedLetter(letter);
+    setIsModalOpen(true);
   };
   
   const symbolMap = {
@@ -258,47 +253,63 @@ const LetterTable: React.FC<LetterTableProps> = ({ letters, documentType }) => {
         </CardContent>
       </Card>
 
-      {/* Hidden div for LetterContent to generate PDF */}
-      {selectedLetter && (
-        <div style={{ display: 'none' }}>
-          <div ref={suratRef}>
-            <LetterContent
-              formData={{
-                nomor: selectedLetter.content?.nomor ?? '',
-                category: selectedLetter.content?.category ?? '',
-                subcategory: selectedLetter.content?.subcategory ?? '',
-                month: selectedLetter.content?.month ?? '',
-                year: selectedLetter.content?.year ?? '',
-                menimbang: selectedLetter.content?.menimbang ?? ['', ''],
-                dasar: selectedLetter.content?.dasar ?? '',
-                untuk: selectedLetter.content?.untuk ?? '',
-                people: selectedLetter.content?.people ?? [],
-                useTTE: selectedLetter.content?.useTTE ?? false,
-                anchorSymbol: selectedLetter.content?.anchorSymbol ?? 'caret',
-                useTableFormat: selectedLetter.content?.useTableFormat ?? true,
-                signatureName: selectedLetter.content?.signatureName ?? ''
-              }}
-              staticData={staticData}
-              formatLetterNumber={(num) => num}
-              getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
-              getAnchorSymbol={() => 'caret'}
-              firstPagePeople={selectedLetter.content?.people ?? []}
-              secondPagePeople={[]}
-              needsPagination={false}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* PDF Viewer */}
-      {pdfBlobUrl && (
-        <div style={{ width: '100vw', height: '100vh', position: 'fixed', left: 0, top: 0, zIndex: 1000, background: '#eee' }}>
-          <Document file={pdfBlobUrl} onLoadError={console.error}>
-            <Page pageNumber={1} width={window.innerWidth - 32} />
-          </Document>
-          <button onClick={() => { setSelectedLetter(null); setPdfBlobUrl(null); }} style={{ position: 'absolute', top: 16, right: 16, zIndex: 1100, background: '#fff', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}>Tutup</button>
-          <a href={pdfBlobUrl} download="SuratTugas.pdf" style={{ position: 'absolute', top: 16, left: 16, zIndex: 1100, background: '#4caf50', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', textDecoration: 'none' }}>Download</a>
-        </div>
+      {/* Modal for preview and print */}
+      {isModalOpen && selectedLetter && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="max-w-3xl w-full p-8 overflow-y-auto" style={{ maxHeight: '90vh' }}>
+            <div id="modal-print-content">
+              <LetterContent
+                formData={{
+                  nomor: selectedLetter.content?.nomor ?? '',
+                  category: selectedLetter.content?.category ?? '',
+                  subcategory: selectedLetter.content?.subcategory ?? '',
+                  month: selectedLetter.content?.month ?? '',
+                  year: selectedLetter.content?.year ?? '',
+                  menimbang: selectedLetter.content?.menimbang ?? ['', ''],
+                  dasar: selectedLetter.content?.dasar ?? '',
+                  untuk: selectedLetter.content?.untuk ?? '',
+                  people: selectedLetter.content?.people ?? [],
+                  useTTE: selectedLetter.content?.useTTE ?? false,
+                  anchorSymbol: selectedLetter.content?.anchorSymbol ?? 'caret',
+                  useTableFormat: selectedLetter.content?.useTableFormat ?? true,
+                  signatureName: selectedLetter.content?.signatureName ?? ''
+                }}
+                staticData={staticData}
+                formatLetterNumber={(_num, formData) => `${formData.nomor}/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`}
+                getCurrentDate={() => formatDate(new Date(selectedLetter.createdAt))}
+                getAnchorSymbol={() => 'caret'}
+                firstPagePeople={selectedLetter.content?.people ?? []}
+                secondPagePeople={[]}
+                needsPagination={false}
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  const printWindow = window.open('', '_blank', 'width=900,height=1200');
+                  if (printWindow) {
+                    printWindow.document.write('<html><head><title>Cetak Surat</title>');
+                    printWindow.document.write('<link rel="stylesheet" href="/src/globals.css" />');
+                    printWindow.document.write('</head><body>');
+                    printWindow.document.write(document.getElementById('modal-print-content')?.innerHTML || '');
+                    printWindow.document.write('</body></html>');
+                    printWindow.document.close();
+                    setTimeout(() => printWindow.print(), 500);
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Cetak
+              </button>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Tutup
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );
