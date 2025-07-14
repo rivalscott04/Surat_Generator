@@ -10,7 +10,6 @@ import {
 import { Person } from '@/types/surat-tugas';
 import { searchEmployees } from '@/services/employee-service';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useAuth } from '@/context/AuthContext';
 
 interface EmployeeSearchProps {
   index: number;
@@ -22,23 +21,35 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
   const [employees, setEmployees] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { token } = useAuth();
 
   useEffect(() => {
-    // Deteksi apakah input NIP (angka) atau nama (huruf)
-    const isNip = /^\d+$/.test(debouncedSearch);
-    if (employees.some(emp => emp.nip === debouncedSearch)) {
+    if (!debouncedSearch) {
+      setEmployees([]);
+      setError(null);
       return;
     }
-    if ((isNip && debouncedSearch.length >= 5) || (!isNip && debouncedSearch.length >= 4)) {
-      searchEmployees(debouncedSearch, token)
+
+    // Deteksi apakah input NIP (angka) atau nama (huruf)
+    const isNip = /^\d+$/.test(debouncedSearch);
+    
+    if ((isNip && debouncedSearch.length >= 4) || (!isNip && debouncedSearch.length >= 4)) {
+      setIsLoading(true);
+      setError(null);
+      
+      searchEmployees(debouncedSearch)
         .then((res) => {
-          console.log('EMPLOYEES:', res);
           setEmployees(res);
         })
-        .catch((err) => setError(err.message));
+        .catch((err) => {
+          setError(err.message);
+          setEmployees([]);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     } else {
       setEmployees([]);
       setError(null);
@@ -59,10 +70,12 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
             }}
             className="bg-white"
           />
-          {(!selected && debouncedSearch.length >= ( /^\d+$/.test(debouncedSearch) ? 5 : 4 ) && employees.length > 0) && (
+          {(!selected && debouncedSearch.length >= 4) && (
             <CommandList>
-              {error ? (
-                <CommandEmpty>{error}</CommandEmpty>
+              {isLoading ? (
+                <CommandEmpty>Mencari...</CommandEmpty>
+              ) : error ? (
+                <CommandEmpty className="text-red-500">{error}</CommandEmpty>
               ) : employees.length > 0 ? (
                 <CommandGroup>
                   {employees.map((employee) => (
@@ -91,7 +104,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ) : debouncedSearch.length > 3 ? (
+              ) : debouncedSearch.length >= 4 ? (
                 <CommandEmpty>Tidak ada hasil</CommandEmpty>
               ) : null}
             </CommandList>
@@ -99,7 +112,7 @@ export const EmployeeSearch: React.FC<EmployeeSearchProps> = ({ index, onEmploye
         </Command>
       </div>
       <p className="text-xs text-gray-400 mt-1">
-        Data pegawai diambil otomatis dari API. Minimal ketik 4 huruf nama atau 5 digit awal NIP.
+        Data pegawai diambil otomatis dari API. Minimal ketik 4 huruf nama atau 4 digit NIP.
       </p>
     </div>
   );

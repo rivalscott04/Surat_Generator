@@ -51,6 +51,8 @@ const SuratTugas = () => {
     anchorSymbol: "caret",
     useTableFormat: false,
     signatureName: "H. Zamroni Aziz", // Default signature name
+    signatureDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+    useCurrentDate: true, // Default to using current date
   });
 
   const [subcategoryOptions, setSubcategoryOptions] = useState<{ value: string, text: string }[]>([]);

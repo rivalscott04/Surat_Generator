@@ -21,6 +21,8 @@ export interface FormData {
   anchorSymbol: string;
   useTableFormat: boolean;
   signatureName: string;
+  signatureDate: string; // Format: YYYY-MM-DD
+  useCurrentDate: boolean; // Toggle between current date and custom date
 }
 
 // Anchor symbol options

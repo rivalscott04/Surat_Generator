@@ -5,19 +5,34 @@ import Archive from "./pages/Archive";
 import Portal from "./pages/Portal";
 import { Toaster } from "./components/ui/toaster";
 import SuratKeputusan from "./components/SuratKeputusan";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LoginForm } from './components/LoginForm';
 
 export default function App() {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Listen to login event (success in LoginForm)
+  useEffect(() => {
+    // Check for existing token on app load
+    const savedToken = localStorage.getItem('token');
+    setToken(savedToken);
+    setLoading(false);
+  }, []);
+
   const handleLoginSuccess = () => {
-    setToken(localStorage.getItem('token'));
+    const newToken = localStorage.getItem('token');
+    setToken(newToken);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-lg text-gray-500">Memuat...</div>
+      </div>
+    );
+  }
+
   if (!token) {
-    // LoginForm akan trigger handleLoginSuccess setelah login
     return <LoginForm onSuccess={handleLoginSuccess} />;
   }
 

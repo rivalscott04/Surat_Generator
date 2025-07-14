@@ -2,33 +2,46 @@ import React, { useEffect, useState, useRef } from "react";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty } from "@/components/ui/command";
 import { Person } from "@/types/surat-tugas";
 import { searchEmployees } from "@/services/employee-service";
-import { useAuth } from '@/context/AuthContext';
+import { useDebounce } from '@/hooks/use-debounce';
 
 interface SKEmployeeSearchProps {
-  value: Person;
+  value?: Person;
   onSelect: (person: Partial<Person>) => void;
   error?: string;
 }
 
-const SKEmployeeSearch: React.FC<SKEmployeeSearchProps> = ({ value, onSelect, error }) => {
+export default function SKEmployeeSearch({ value, onSelect, error }: SKEmployeeSearchProps) {
   const [search, setSearch] = useState("");
   const [employees, setEmployees] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const debouncedSearch = useDebounce(search, 300);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { token } = useAuth();
 
   useEffect(() => {
-    if (search.length > 2) {
-      setLoading(true);
-      searchEmployees(search, token).then(res => {
-        setEmployees(res);
-        setLoading(false);
-      });
+    if (!debouncedSearch) {
+      setEmployees([]);
+      return;
+    }
+    
+    const isNip = /^\d+$/.test(debouncedSearch);
+    if ((isNip && debouncedSearch.length >= 5) || (!isNip && debouncedSearch.length >= 4)) {
+      setIsLoading(true);
+      searchEmployees(debouncedSearch)
+        .then((res) => {
+          setEmployees(res);
+        })
+        .catch((err) => {
+          console.error('Error searching employees:', err);
+          setEmployees([]);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     } else {
       setEmployees([]);
     }
-  }, [search, token]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -85,13 +98,13 @@ const SKEmployeeSearch: React.FC<SKEmployeeSearchProps> = ({ value, onSelect, er
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              ) : search.length > 2 && !loading ? (
+              ) : search.length > 2 && !isLoading ? (
                 <CommandEmpty>Tidak ada hasil</CommandEmpty>
               ) : null}
             </CommandList>
           )}
         </Command>
-        {loading && (
+        {isLoading && (
           <span className="absolute right-2 top-2 text-xs text-gray-400">loading...</span>
         )}
       </div>
@@ -104,5 +117,3 @@ const SKEmployeeSearch: React.FC<SKEmployeeSearchProps> = ({ value, onSelect, er
     </div>
   );
 };
-
-export default SKEmployeeSearch;

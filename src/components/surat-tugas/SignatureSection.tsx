@@ -1,17 +1,23 @@
 import React from "react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 interface SignatureSectionProps {
   getCurrentDate: () => string;
   useTTE: boolean;
   anchorSymbol: string;
   signatureName: string;
+  signatureDate: string;
+  useCurrentDate: boolean;
 }
 
 const SignatureSection: React.FC<SignatureSectionProps> = ({ 
   getCurrentDate, 
   useTTE, 
   anchorSymbol,
-  signatureName 
+  signatureName,
+  signatureDate,
+  useCurrentDate
 }) => {
   const symbolMap: Record<string, string> = {
     caret: '^',
@@ -19,12 +25,26 @@ const SignatureSection: React.FC<SignatureSectionProps> = ({
     dolar: '$',
   };
 
+  // Format date for display
+  const getDisplayDate = () => {
+    if (useCurrentDate) {
+      return getCurrentDate();
+    } else {
+      try {
+        const date = new Date(signatureDate);
+        return format(date, "dd MMMM yyyy", { locale: id });
+      } catch {
+        return getCurrentDate(); // Fallback to current date if invalid
+      }
+    }
+  };
+
   return (
     <div className="mt-12">
       <div className="flex justify-end">
         <div className="w-48">
           <div className="text-left">
-            <p>Mataram, {getCurrentDate()}</p>
+            <p>Mataram, {getDisplayDate()}</p>
             <p>Kepala,</p>
             
             <div className="h-24 relative">

@@ -92,6 +92,8 @@ const LetterContent: React.FC<LetterContentProps> = ({
             useTTE={formData.useTTE} 
             anchorSymbol={formData.anchorSymbol} 
             signatureName={formData.signatureName}
+            signatureDate={formData.signatureDate}
+            useCurrentDate={formData.useCurrentDate}
           />
         </div>
       </div>

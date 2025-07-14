@@ -49,11 +49,10 @@ const formSchema = z.object({
   menimbang: z.array(z.string().trim().min(1, "Poin menimbang wajib diisi")).length(2, "Harus ada 2 poin menimbang"),
   dasar: z.string().trim().min(1, "Dasar harus diisi"),
   untuk: z.string().trim().min(1, "Untuk harus diisi"),
-  people: z.array(personSchema).min(1, "Minimal harus ada satu orang"),
-  useTTE: z.boolean(),
-  anchorSymbol: z.string(),
-  useTableFormat: z.boolean(),
   signatureName: z.string().min(1, "Nama penandatangan harus diisi"),
+  signatureDate: z.string().min(1, "Tanggal harus diisi"),
+  useCurrentDate: z.boolean(),
+  people: z.array(personSchema).min(1, "Minimal harus ada satu orang"),
 });
 
 const LETTER_TYPE_MAP: Record<string, string> = {
@@ -90,9 +89,12 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
     : `Format: [Nomor]/Kw.18.01/2/${formData.subcategory}/${formData.month}/${formData.year}`;
 
   const validateField = (name: string, value: string) => {
-    if (name === "nomor" && value && !/^[0-9]*$/.test(value)) {
-      setErrors(prev => ({ ...prev, [name]: "Nomor surat hanya boleh angka" }));
-      return false;
+    if (name === "nomor") {
+      // Auto-filter: hanya angka
+      const onlyNumbers = value.replace(/\D/g, "");
+      setFormData(prev => ({ ...prev, nomor: onlyNumbers }));
+      setErrors(prev => ({ ...prev, nomor: onlyNumbers ? undefined : "Nomor surat harus diisi" }));
+      return;
     }
     try {
       const fieldSchema = formSchema.shape[name as keyof typeof formSchema.shape];
@@ -625,37 +627,79 @@ const SuratTugasForm: React.FC<SuratTugasFormProps> = ({
         </div>
 
         <div className="border-t border-gray-200 pt-6">
-          <div className="flex items-center mb-2">
-            <input
-              type="checkbox"
-              id="useTTE"
-              name="useTTE"
-              checked={formData.useTTE}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="useTTE" className="ml-2 block text-sm font-medium text-gray-700">
-              Gunakan Tanda Tangan Elektronik (TTE)
-            </label>
-          </div>
-
-          {formData.useTTE && (
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Simbol Anchor</label>
-              <select
-                name="anchorSymbol"
-                value={formData.anchorSymbol}
-                onChange={handleFieldChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {anchorSymbols.map((anchor) => (
-                  <option key={anchor.id} value={anchor.id}>
-                    {anchor.symbol}
-                  </option>
-                ))}
-              </select>
+          <div className="flex flex-col gap-2 mb-2">
+            {/* Gunakan TTE */}
+            <div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useTTE"
+                  name="useTTE"
+                  checked={formData.useTTE}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useTTE" className="ml-2 text-sm font-medium text-gray-700">
+                  Gunakan Tanda Tangan Elektronik (TTE)
+                </label>
+              </div>
+              {formData.useTTE && (
+                <div className="ml-6 mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Simbol Anchor</label>
+                  <select
+                    name="anchorSymbol"
+                    value={formData.anchorSymbol}
+                    onChange={handleFieldChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {anchorSymbols.map((anchor) => (
+                      <option key={anchor.id} value={anchor.id}>
+                        {anchor.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
-          )}
+            {/* Gunakan tanggal hari ini */}
+            <div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useCurrentDate"
+                  name="useCurrentDate"
+                  checked={formData.useCurrentDate}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      useCurrentDate: checked,
+                      signatureDate: checked ? new Date().toISOString().split('T')[0] : prev.signatureDate
+                    }));
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useCurrentDate" className="ml-2 text-sm font-medium text-gray-700">
+                  Gunakan tanggal hari ini
+                </label>
+              </div>
+              {!formData.useCurrentDate && (
+                <div className="ml-6 mt-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <Input
+                    type="date"
+                    id="signatureDate"
+                    name="signatureDate"
+                    value={formData.signatureDate}
+                    onChange={handleFieldChange}
+                    className="flex-1"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-gray-200 pt-6">

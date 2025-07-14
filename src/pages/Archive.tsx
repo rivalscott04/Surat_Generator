@@ -1,4 +1,3 @@
-import { useLetterStore } from "@/hooks/use-letter-store";
 import LetterTable from "@/components/surat-tugas/LetterTable";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,10 @@ const Archive = () => {
       try {
         const token = localStorage.getItem('token');
         const res = await fetch('http://localhost:3000/api/letters', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
         if (!res.ok) throw new Error('Gagal mengambil data arsip dari server');
         const data = await res.json();

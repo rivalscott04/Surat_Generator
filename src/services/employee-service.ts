@@ -15,17 +15,21 @@ export async function login(username: string, password: string) {
   });
   if (!res.ok) throw new Error('Login gagal');
   const data = await res.json();
-  // TODO: Use a secure auth context or cookie for token management
+  localStorage.setItem('token', data.token);
   return data;
 }
 
 // Service pencarian pegawai ke API BE
-export async function searchEmployees(query: string, token: string) {
-  if (!token) throw new Error('Belum login');
+export async function searchEmployees(query: string) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Belum login. Silakan login terlebih dahulu.');
+  }
 
   // Deteksi apakah query NIP (angka) atau nama (huruf)
   const isNip = /^\d+$/.test(query);
-  if ((isNip && query.length < 5) || (!isNip && query.length < 4)) {
+  
+  if ((isNip && query.length < 4) || (!isNip && query.length < 4)) {
     // Tidak valid, return array kosong
     return [];
   }
@@ -44,7 +48,14 @@ export async function searchEmployees(query: string, token: string) {
     },
   });
 
-  if (!res.ok) throw new Error('Gagal mengambil data pegawai');
+  if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      throw new Error('Token expired. Silakan login ulang.');
+    }
+    throw new Error('Gagal mengambil data pegawai');
+  }
+  
   const data = await res.json();
 
   // Mapping field dari BE ke FE
