@@ -26,6 +26,9 @@ const LetterContent: React.FC<LetterContentProps> = ({
   secondPagePeople,
   needsPagination,
 }) => {
+  // Check if we need to split content for table format with 3 people
+  const shouldSplitForTable = formData.useTableFormat && formData.people.length === 3;
+
   return (
     <>
       {/* First Page */}
@@ -75,28 +78,65 @@ const LetterContent: React.FC<LetterContentProps> = ({
             </div>
           </div>
 
-          {/* Untuk section dengan table-like layout - SELALU muncul setelah tabel pegawai */}
-          <div className="flex">
-            <div className="w-[120px] font-bold">Untuk</div>
-            <div className="w-[20px] text-center">:</div>
-            <div className="flex-1 text-justify">{formData.untuk || "........................."}</div>
-          </div>
+          {/* Untuk section - hanya muncul jika tidak menggunakan split untuk tabel */}
+          {!shouldSplitForTable && (
+            <div className="flex">
+              <div className="w-[120px] font-bold">Untuk</div>
+              <div className="w-[20px] text-center">:</div>
+              <div className="flex-1 text-justify">{formData.untuk || "........................."}</div>
+            </div>
+          )}
 
-          {/* Penutup dan SignatureSection - SELALU muncul setelah 'Untuk' */}
-          <p className="text-justify">
-            Demikian Surat Tugas ini dibuat untuk dapat dilaksanakan sebagaimana mestinya.
-          </p>
+          {/* Penutup dan SignatureSection - hanya muncul jika tidak menggunakan split untuk tabel */}
+          {!shouldSplitForTable && (
+            <>
+              <p className="text-justify">
+                Demikian Surat Tugas ini dibuat untuk dapat dilaksanakan sebagaimana mestinya.
+              </p>
 
-          <SignatureSection 
-            getCurrentDate={getCurrentDate} 
-            useTTE={formData.useTTE} 
-            anchorSymbol={formData.anchorSymbol} 
-            signatureName={formData.signatureName}
-            signatureDate={formData.signatureDate}
-            useCurrentDate={formData.useCurrentDate}
-          />
+              <SignatureSection 
+                getCurrentDate={getCurrentDate} 
+                useTTE={formData.useTTE} 
+                anchorSymbol={formData.anchorSymbol} 
+                signatureName={formData.signatureName}
+                signatureDate={formData.signatureDate}
+                useCurrentDate={formData.useCurrentDate}
+              />
+            </>
+          )}
         </div>
       </div>
+
+      {/* Second Page - hanya muncul jika menggunakan split untuk tabel */}
+      {shouldSplitForTable && (
+        <div
+          className="border border-gray-200 rounded-lg p-8 min-h-[29.7cm] bg-white shadow-inner mb-8 print:mb-0 print:min-h-screen print:rounded-none print:shadow-none print:border-none"
+          style={{ fontFamily: "Arial, sans-serif", fontSize: "12pt", textAlign: "justify" }}
+        >
+          <div className="space-y-6 text-sm">
+            {/* Untuk section */}
+            <div className="flex">
+              <div className="w-[120px] font-bold">Untuk</div>
+              <div className="w-[20px] text-center">:</div>
+              <div className="flex-1 text-justify">{formData.untuk || "........................."}</div>
+            </div>
+
+            {/* Penutup dan SignatureSection */}
+            <p className="text-justify">
+              Demikian Surat Tugas ini dibuat untuk dapat dilaksanakan sebagaimana mestinya.
+            </p>
+
+            <SignatureSection 
+              getCurrentDate={getCurrentDate} 
+              useTTE={formData.useTTE} 
+              anchorSymbol={formData.anchorSymbol} 
+              signatureName={formData.signatureName}
+              signatureDate={formData.signatureDate}
+              useCurrentDate={formData.useCurrentDate}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };

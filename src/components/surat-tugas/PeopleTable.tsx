@@ -37,14 +37,14 @@ const PeopleTable: React.FC<PeopleTableProps> = ({ people, startIndex = 0, showH
               <div className="font-medium">{cleanName(person.nama)}</div>
               <div className="text-xs">{person.nip || "........................."}</div>
             </td>
-            <td className="border border-black p-2 whitespace-normal text-xs">
-              <div>{person.jabatan || "........................."}</div>
-              {person.unitKerja && (
-                <div className="text-xs">pada {person.unitKerja}</div>
-              )}
+            <td className="border border-black p-2 text-xs">
+              <div className="whitespace-normal">
+                {person.jabatan || "........................."}
+                {person.unitKerja && ` pada ${person.unitKerja}`}
+              </div>
             </td>
-            <td className="border border-black p-2 whitespace-normal text-xs">
-              {person.keterangan || ""}
+            <td className="border border-black p-2 text-xs">
+              <div className="whitespace-normal">{person.keterangan || ""}</div>
             </td>
           </tr>
         ))}
