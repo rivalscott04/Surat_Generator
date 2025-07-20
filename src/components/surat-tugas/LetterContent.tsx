@@ -26,8 +26,12 @@ const LetterContent: React.FC<LetterContentProps> = ({
   secondPagePeople,
   needsPagination,
 }) => {
-  // Check if we need to split content for table format with 3 people
-  const shouldSplitForTable = formData.useTableFormat && formData.people.length === 3;
+  // Check if we need to split content for table format with 3 or 4 people
+  const shouldSplitForTable = formData.useTableFormat && (formData.people.length === 3 || formData.people.length === 4);
+  
+  // For table format, show only 3 people on first page
+  const firstPageTablePeople = formData.useTableFormat ? formData.people.slice(0, 3) : formData.people;
+  const secondPageTablePeople = formData.useTableFormat ? formData.people.slice(3) : [];
 
   return (
     <>
@@ -72,7 +76,7 @@ const LetterContent: React.FC<LetterContentProps> = ({
             <div className="w-[20px] text-center">:</div>
             <div className="flex-1">
               {formData.useTableFormat ?
-                <PeopleTable people={formData.people ?? []} /> :
+                <PeopleTable people={firstPageTablePeople} /> :
                 <PeopleList people={formData.people ?? []} totalPeople={(formData.people ?? []).length} />
               }
             </div>
@@ -107,13 +111,21 @@ const LetterContent: React.FC<LetterContentProps> = ({
         </div>
       </div>
 
-      {/* Second Page - hanya muncul jika menggunakan split untuk tabel */}
-      {shouldSplitForTable && (
+      {/* Second Page - untuk data tambahan tabel (tanpa header) */}
+      {formData.useTableFormat && secondPageTablePeople.length > 0 && (
         <div
           className="border border-gray-200 rounded-lg p-8 min-h-[29.7cm] bg-white shadow-inner mb-8 print:mb-0 print:min-h-screen print:rounded-none print:shadow-none print:border-none"
           style={{ fontFamily: "Arial, sans-serif", fontSize: "12pt", textAlign: "justify" }}
         >
           <div className="space-y-6 text-sm">
+            <div className="flex">
+              <div className="w-[120px]"></div>
+              <div className="w-[20px]"></div>
+              <div className="flex-1">
+                <PeopleTable people={secondPageTablePeople} startIndex={3} showHeader={true} />
+              </div>
+            </div>
+            
             {/* Untuk section */}
             <div className="flex">
               <div className="w-[120px] font-bold">Untuk</div>

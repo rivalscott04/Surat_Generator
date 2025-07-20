@@ -39,7 +39,7 @@ const PeopleTable: React.FC<PeopleTableProps> = ({ people, startIndex = 0, showH
             </td>
             <td className="border border-black p-2 text-xs">
               <div className="whitespace-normal">
-                {person.jabatan || "........................."}
+              {person.jabatan || "........................."}
                 {person.unitKerja && ` pada ${person.unitKerja}`}
               </div>
             </td>
